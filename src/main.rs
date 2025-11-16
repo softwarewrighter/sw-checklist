@@ -117,7 +117,40 @@ fn main() -> Result<()> {
         std::process::exit(1);
     }
 
-    println!("Project type: Rust");
+    // Detect project types
+    let mut has_cli = false;
+    let mut has_wasm = false;
+    let mut has_yew = false;
+
+    for cargo_toml_path in &cargo_tomls {
+        if let Ok(cargo_toml) = fs::read_to_string(cargo_toml_path) {
+            if cargo_toml.contains("clap") {
+                has_cli = true;
+            }
+            if cargo_toml.contains("wasm-bindgen") {
+                has_wasm = true;
+            }
+            if cargo_toml.contains("yew") {
+                has_yew = true;
+            }
+        }
+    }
+
+    let project_type = if has_cli && has_yew {
+        "CLI + Yew"
+    } else if has_cli && has_wasm {
+        "CLI + WASM"
+    } else if has_yew {
+        "Yew (WASM)"
+    } else if has_wasm {
+        "WASM"
+    } else if has_cli {
+        "CLI"
+    } else {
+        "Rust Library"
+    };
+
+    println!("Project type: {}", project_type);
     println!("Found {} Cargo.toml file(s)", cargo_tomls.len());
     println!();
 
@@ -164,19 +197,23 @@ fn run_checks(
         let cargo_toml = fs::read_to_string(cargo_toml_path)
             .with_context(|| format!("Failed to read Cargo.toml at {:?}", cargo_toml_path))?;
 
-        // Only check crates that use clap
-        if !cargo_toml.contains("clap") {
-            continue;
-        }
+        let has_clap = cargo_toml.contains("clap");
+        let is_wasm = is_wasm_crate(&cargo_toml);
 
-        let crate_dir = cargo_toml_path.parent().unwrap();
-        results.extend(check_rust_crate(project_root, crate_dir, verbose)?);
+        // Check crates that use clap or are WASM projects
+        if has_clap {
+            let crate_dir = cargo_toml_path.parent().unwrap();
+            results.extend(check_rust_crate(project_root, crate_dir, verbose)?);
+        } else if is_wasm {
+            let crate_dir = cargo_toml_path.parent().unwrap();
+            results.extend(check_wasm_crate(project_root, crate_dir, verbose)?);
+        }
     }
 
     if results.is_empty() {
         results.push(CheckResult::pass(
-            "Clap Check",
-            "No crates using clap found - skipping CLI checks",
+            "Project Check",
+            "No crates using clap or WASM found - skipping checks",
         ));
     }
 
@@ -201,6 +238,9 @@ fn check_rust_crate(
         .and_then(|n| n.as_str())
         .unwrap_or("unknown");
 
+    // Detect if this is a WASM project
+    let is_wasm = is_wasm_crate(&cargo_toml);
+
     results.push(CheckResult::pass(
         format!("Clap Dependency [{}]", crate_name),
         format!("Found clap dependency in {}", crate_name),
@@ -218,6 +258,9 @@ fn check_rust_crate(
             ),
         ));
     }
+
+    // Check for tests
+    results.extend(check_tests(crate_dir, crate_name, is_wasm));
 
     Ok(results)
 }
@@ -483,6 +526,297 @@ fn check_version_flags(
     results
 }
 
+fn is_wasm_crate(cargo_toml: &str) -> bool {
+    cargo_toml.contains("wasm-bindgen") || cargo_toml.contains("yew")
+}
+
+fn check_wasm_crate(
+    _project_root: &Path,
+    crate_dir: &Path,
+    _verbose: bool,
+) -> Result<Vec<CheckResult>> {
+    let mut results = Vec::new();
+
+    let cargo_toml_path = crate_dir.join("Cargo.toml");
+    let cargo_toml = fs::read_to_string(&cargo_toml_path)?;
+    let cargo: toml::Value = toml::from_str(&cargo_toml)
+        .with_context(|| format!("Failed to parse Cargo.toml at {:?}", cargo_toml_path))?;
+
+    let crate_name = cargo
+        .get("package")
+        .and_then(|p| p.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or("unknown");
+
+    results.push(CheckResult::pass(
+        format!("WASM Dependency [{}]", crate_name),
+        format!("Found WASM dependencies in {}", crate_name),
+    ));
+
+    // Check for index.html
+    results.extend(check_wasm_html_files(crate_dir, crate_name));
+
+    // Check for favicon
+    results.extend(check_wasm_favicon(crate_dir, crate_name));
+
+    // Check for footer in source code
+    results.extend(check_wasm_footer_in_source(crate_dir, crate_name));
+
+    // Check for tests
+    results.extend(check_tests(crate_dir, crate_name, true));
+
+    Ok(results)
+}
+
+fn check_wasm_html_files(crate_dir: &Path, crate_name: &str) -> Vec<CheckResult> {
+    let mut results = Vec::new();
+    let label = format!("[{}]", crate_name);
+
+    // Check for index.html
+    let index_html = crate_dir.join("index.html");
+    if index_html.exists() {
+        results.push(CheckResult::pass(
+            format!("index.html {}", label),
+            "Found index.html",
+        ));
+
+        // Check if it references favicon
+        if let Ok(html_content) = fs::read_to_string(&index_html) {
+            let html_lower = html_content.to_lowercase();
+            if html_lower.contains("favicon.ico") || html_lower.contains("rel=\"icon\"") {
+                results.push(CheckResult::pass(
+                    format!("Favicon Reference {}", label),
+                    "index.html references favicon",
+                ));
+            } else {
+                results.push(CheckResult::fail(
+                    format!("Favicon Reference {}", label),
+                    "index.html should reference favicon.ico",
+                ));
+            }
+        }
+    } else {
+        results.push(CheckResult::fail(
+            format!("index.html {}", label),
+            "WASM projects should have an index.html file",
+        ));
+    }
+
+    results
+}
+
+fn check_wasm_favicon(crate_dir: &Path, crate_name: &str) -> Vec<CheckResult> {
+    let mut results = Vec::new();
+    let label = format!("[{}]", crate_name);
+
+    let favicon = crate_dir.join("favicon.ico");
+    if favicon.exists() {
+        results.push(CheckResult::pass(
+            format!("favicon.ico {}", label),
+            "Found favicon.ico",
+        ));
+    } else {
+        results.push(CheckResult::fail(
+            format!("favicon.ico {}", label),
+            "WASM projects should have a favicon.ico file",
+        ));
+    }
+
+    results
+}
+
+fn check_wasm_footer_in_source(crate_dir: &Path, crate_name: &str) -> Vec<CheckResult> {
+    use walkdir::WalkDir;
+
+    let mut results = Vec::new();
+    let label = format!("[{}]", crate_name);
+
+    // Search for .rs files in src/
+    let src_dir = crate_dir.join("src");
+    if !src_dir.exists() {
+        return results;
+    }
+
+    let mut found_footer = false;
+    let mut footer_content = String::new();
+
+    // Recursively search for footer-related code
+    if let Ok(entries) = WalkDir::new(&src_dir)
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()
+    {
+        for entry in entries {
+            if entry.path().extension().and_then(|s| s.to_str()) == Some("rs") {
+                if let Ok(content) = fs::read_to_string(entry.path()) {
+                    let content_lower = content.to_lowercase();
+                    if content_lower.contains("footer")
+                        || content_lower.contains("<footer")
+                        || content_lower.contains("html! {")
+                            && (content_lower.contains("copyright")
+                                || content_lower.contains("license"))
+                    {
+                        found_footer = true;
+                        footer_content = content;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if !found_footer {
+        results.push(CheckResult::fail(
+            format!("Footer Presence {}", label),
+            "Could not find footer element in source code",
+        ));
+        return results;
+    }
+
+    results.push(CheckResult::pass(
+        format!("Footer Presence {}", label),
+        "Found footer in source code",
+    ));
+
+    // Check footer content
+    let footer_lower = footer_content.to_lowercase();
+
+    check_footer_field(
+        &mut results,
+        &label,
+        "Copyright",
+        &footer_lower,
+        &["copyright"],
+    );
+    check_footer_field(
+        &mut results,
+        &label,
+        "License Link",
+        &footer_lower,
+        &["license"],
+    );
+    check_footer_field(
+        &mut results,
+        &label,
+        "Repository Link",
+        &footer_lower,
+        &["github.com", "gitlab.com", "repository"],
+    );
+    check_footer_field(
+        &mut results,
+        &label,
+        "Build Host",
+        &footer_lower,
+        &["build_host", "build host", "host"],
+    );
+    check_footer_field(
+        &mut results,
+        &label,
+        "Build Commit",
+        &footer_lower,
+        &["build_commit", "commit", "sha"],
+    );
+    check_footer_field(
+        &mut results,
+        &label,
+        "Build Time",
+        &footer_lower,
+        &["build_time", "build time", "timestamp"],
+    );
+
+    results
+}
+
+fn check_footer_field(
+    results: &mut Vec<CheckResult>,
+    label: &str,
+    field_name: &str,
+    content: &str,
+    patterns: &[&str],
+) {
+    let found = patterns.iter().any(|p| content.contains(p));
+
+    if found {
+        results.push(CheckResult::pass(
+            format!("Footer {} {}", field_name, label),
+            format!("Footer includes {} info", field_name),
+        ));
+    } else {
+        results.push(CheckResult::fail(
+            format!("Footer {} {}", field_name, label),
+            format!("Footer should include {} info", field_name),
+        ));
+    }
+}
+
+fn check_tests(crate_dir: &Path, crate_name: &str, is_wasm: bool) -> Vec<CheckResult> {
+    use walkdir::WalkDir;
+
+    let mut results = Vec::new();
+    let label = format!("[{}]", crate_name);
+
+    // Check for tests directory or #[cfg(test)] in source files
+    let tests_dir = crate_dir.join("tests");
+    let has_tests_dir = tests_dir.exists();
+
+    // Check src/ for test modules
+    let src_dir = crate_dir.join("src");
+    let mut has_test_annotations = false;
+
+    if src_dir.exists() {
+        if let Ok(entries) = WalkDir::new(&src_dir)
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()
+        {
+            for entry in entries {
+                if entry.path().extension().and_then(|s| s.to_str()) == Some("rs") {
+                    if let Ok(content) = fs::read_to_string(entry.path()) {
+                        if content.contains("#[test]") || content.contains("#[cfg(test)]") {
+                            has_test_annotations = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if is_wasm {
+        // For WASM, also check for Jest tests or curl-based tests
+        let package_json = crate_dir.join("package.json");
+        let has_jest = package_json.exists()
+            && fs::read_to_string(&package_json)
+                .map(|c| c.contains("jest"))
+                .unwrap_or(false);
+
+        if has_tests_dir || has_test_annotations || has_jest {
+            results.push(CheckResult::pass(
+                format!("Tests {}", label),
+                "Found test files or annotations",
+            ));
+        } else {
+            results.push(CheckResult::fail(
+                format!("Tests {}", label),
+                "WASM projects should have Rust tests, Jest tests, or curl-based tests",
+            ));
+        }
+    } else {
+        // For CLI projects, check for cargo tests
+        if has_tests_dir || has_test_annotations {
+            results.push(CheckResult::pass(
+                format!("Tests {}", label),
+                "Found test files or #[test] annotations",
+            ));
+        } else {
+            results.push(CheckResult::fail(
+                format!("Tests {}", label),
+                "Projects should have tests directory or #[test] annotations",
+            ));
+        }
+    }
+
+    results
+}
+
 fn check_version_field(
     results: &mut Vec<CheckResult>,
     label_prefix: &str,
@@ -723,13 +1057,15 @@ tokio = "1.0"
         let found = find_cargo_tomls(temp.path());
         assert_eq!(found.len(), 1);
 
-        // Should skip crates without clap and return a single pass message
+        // Should skip crates without clap/WASM and return a single pass message
         let results = run_checks(temp.path(), &found, false).unwrap();
 
-        // Results should indicate no clap crates were found
+        // Results should indicate no clap/WASM crates were found
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
-        assert!(results[0].message.contains("No crates using clap found"));
+        assert!(results[0]
+            .message
+            .contains("No crates using clap or WASM found"));
     }
 
     #[test]
