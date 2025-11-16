@@ -548,4 +548,136 @@ mod tests {
         let names = get_binary_names(&cargo);
         assert_eq!(names, vec!["bin1", "bin2"]);
     }
+
+    #[test]
+    fn test_workspace_structure() {
+        use tempfile::tempdir;
+
+        // Create a workspace-like structure
+        let temp = tempdir().unwrap();
+
+        // Root workspace Cargo.toml
+        let workspace_toml = temp.path().join("Cargo.toml");
+        fs::write(
+            &workspace_toml,
+            r#"
+[workspace]
+members = ["crate1", "crate2"]
+"#,
+        )
+        .unwrap();
+
+        // Crate 1
+        fs::create_dir_all(temp.path().join("crate1")).unwrap();
+        let crate1_toml = temp.path().join("crate1/Cargo.toml");
+        fs::write(
+            &crate1_toml,
+            r#"
+[package]
+name = "crate1"
+version = "0.1.0"
+"#,
+        )
+        .unwrap();
+
+        // Crate 2
+        fs::create_dir_all(temp.path().join("crate2")).unwrap();
+        let crate2_toml = temp.path().join("crate2/Cargo.toml");
+        fs::write(
+            &crate2_toml,
+            r#"
+[package]
+name = "crate2"
+version = "0.1.0"
+"#,
+        )
+        .unwrap();
+
+        // Should find all 3 Cargo.toml files
+        let found = find_cargo_tomls(temp.path());
+        assert_eq!(found.len(), 3);
+    }
+
+    #[test]
+    fn test_nested_crates() {
+        use tempfile::tempdir;
+
+        let temp = tempdir().unwrap();
+
+        // Root Cargo.toml
+        let root_toml = temp.path().join("Cargo.toml");
+        fs::write(&root_toml, "[package]\nname = \"root\"\n").unwrap();
+
+        // Nested crate
+        fs::create_dir_all(temp.path().join("nested/deep")).unwrap();
+        let nested_toml = temp.path().join("nested/deep/Cargo.toml");
+        fs::write(&nested_toml, "[package]\nname = \"nested\"\n").unwrap();
+
+        // Should find both
+        let found = find_cargo_tomls(temp.path());
+        assert_eq!(found.len(), 2);
+    }
+
+    #[test]
+    fn test_multi_binary_crate() {
+        let cargo_toml = r#"
+            [package]
+            name = "multi-bin"
+
+            [[bin]]
+            name = "server"
+            path = "src/server.rs"
+
+            [[bin]]
+            name = "client"
+            path = "src/client.rs"
+
+            [[bin]]
+            name = "admin"
+            path = "src/admin.rs"
+        "#;
+        let cargo: toml::Value = toml::from_str(cargo_toml).unwrap();
+        let names = get_binary_names(&cargo);
+        assert_eq!(names, vec!["server", "client", "admin"]);
+    }
+
+    #[test]
+    fn test_crate_without_clap() {
+        use tempfile::tempdir;
+
+        let temp = tempdir().unwrap();
+        let cargo_toml = temp.path().join("Cargo.toml");
+        fs::write(
+            &cargo_toml,
+            r#"
+[package]
+name = "my-library"
+
+[dependencies]
+serde = "1.0"
+tokio = "1.0"
+"#,
+        )
+        .unwrap();
+
+        let found = find_cargo_tomls(temp.path());
+        assert_eq!(found.len(), 1);
+
+        // Should skip crates without clap and return a single pass message
+        let results = run_checks(temp.path(), &found, false).unwrap();
+
+        // Results should indicate no clap crates were found
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+        assert!(results[0].message.contains("No crates using clap found"));
+    }
+
+    #[test]
+    fn test_empty_project() {
+        use tempfile::tempdir;
+
+        let temp = tempdir().unwrap();
+        let found = find_cargo_tomls(temp.path());
+        assert_eq!(found.len(), 0);
+    }
 }
