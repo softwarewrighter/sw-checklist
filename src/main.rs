@@ -416,29 +416,55 @@ fn check_version_flags(
             }
 
             // Check for required fields in version output
-            let version_output = &long;
-            let required_fields = [
-                ("Copyright", "Copyright (c)"),
-                ("License", "MIT License"),
-                ("Repository", "https://github.com"),
-                ("Build Host", "Build Host:"),
-                ("Build Commit", "Build Commit:"),
-                ("Build Time", "Build Time:"),
-            ];
+            let version_output_lower = long.to_lowercase();
 
-            for (field_name, pattern) in required_fields {
-                if version_output.contains(pattern) {
-                    results.push(CheckResult::pass(
-                        format!("Version Field: {} {}", field_name, label_prefix),
-                        format!("Found {} in version output", field_name),
-                    ));
-                } else {
-                    results.push(CheckResult::fail(
-                        format!("Version Field: {} {}", field_name, label_prefix),
-                        format!("Version output should contain {}", field_name),
-                    ));
-                }
-            }
+            check_version_field(
+                &mut results,
+                &label_prefix,
+                "Copyright",
+                &version_output_lower,
+                &["copyright"],
+            );
+
+            check_version_field(
+                &mut results,
+                &label_prefix,
+                "License",
+                &version_output_lower,
+                &["license", "mit", "apache", "gpl", "bsd"],
+            );
+
+            check_version_field(
+                &mut results,
+                &label_prefix,
+                "Repository",
+                &version_output_lower,
+                &["repository", "github.com", "gitlab.com", "bitbucket.org"],
+            );
+
+            check_version_field(
+                &mut results,
+                &label_prefix,
+                "Build Host",
+                &version_output_lower,
+                &["build host", "build-host", "host"],
+            );
+
+            check_version_field(
+                &mut results,
+                &label_prefix,
+                "Build Commit",
+                &version_output_lower,
+                &["build commit", "build-commit", "commit", "sha", "git"],
+            );
+
+            check_version_field(
+                &mut results,
+                &label_prefix,
+                "Build Time",
+                &version_output_lower,
+                &["build time", "build-time", "timestamp", "built"],
+            );
         }
         (Err(e), _) => {
             results.push(CheckResult::fail(
@@ -455,6 +481,40 @@ fn check_version_flags(
     }
 
     results
+}
+
+fn check_version_field(
+    results: &mut Vec<CheckResult>,
+    label_prefix: &str,
+    field_name: &str,
+    version_output_lower: &str,
+    patterns: &[&str],
+) {
+    let found = patterns
+        .iter()
+        .any(|pattern| version_output_lower.contains(pattern));
+
+    if found {
+        results.push(CheckResult::pass(
+            format!("Version Field: {} {}", field_name, label_prefix),
+            format!("Found {} in version output", field_name),
+        ));
+    } else {
+        let message = if field_name == "License" {
+            "There does not appear to be license info present in the -V/--version output"
+                .to_string()
+        } else {
+            format!(
+                "There does not appear to be {} info present in the -V/--version output",
+                field_name
+            )
+        };
+
+        results.push(CheckResult::fail(
+            format!("Version Field: {} {}", field_name, label_prefix),
+            message,
+        ));
+    }
 }
 
 fn run_command(binary: &Path, args: &[&str]) -> Result<String> {
@@ -679,5 +739,131 @@ tokio = "1.0"
         let temp = tempdir().unwrap();
         let found = find_cargo_tomls(temp.path());
         assert_eq!(found.len(), 0);
+    }
+
+    #[test]
+    fn test_check_version_field_case_insensitive() {
+        let mut results = Vec::new();
+        let label = "[test]";
+
+        // Test with "Copyright (c)" format
+        check_version_field(
+            &mut results,
+            label,
+            "Copyright",
+            &"Copyright (c) 2025 Acme".to_lowercase(),
+            &["copyright"],
+        );
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+
+        // Test with "Copyright:" format
+        results.clear();
+        check_version_field(
+            &mut results,
+            label,
+            "Copyright",
+            &"Copyright: 2025 Acme".to_lowercase(),
+            &["copyright"],
+        );
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+    }
+
+    #[test]
+    fn test_check_version_field_license_variations() {
+        let mut results = Vec::new();
+        let label = "[test]";
+
+        // Test "MIT License"
+        check_version_field(
+            &mut results,
+            label,
+            "License",
+            &"MIT License".to_lowercase(),
+            &["license", "mit", "apache", "gpl", "bsd"],
+        );
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+
+        // Test "License: MIT"
+        results.clear();
+        check_version_field(
+            &mut results,
+            label,
+            "License",
+            &"License: MIT".to_lowercase(),
+            &["license", "mit", "apache", "gpl", "bsd"],
+        );
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+
+        // Test "Apache-2.0"
+        results.clear();
+        check_version_field(
+            &mut results,
+            label,
+            "License",
+            &"Apache-2.0".to_lowercase(),
+            &["license", "mit", "apache", "gpl", "bsd"],
+        );
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+
+        // Test no license
+        results.clear();
+        check_version_field(
+            &mut results,
+            label,
+            "License",
+            &"Version 1.0.0".to_lowercase(),
+            &["license", "mit", "apache", "gpl", "bsd"],
+        );
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].passed);
+        assert!(results[0]
+            .message
+            .contains("does not appear to be license info"));
+    }
+
+    #[test]
+    fn test_check_version_field_build_variations() {
+        let mut results = Vec::new();
+        let label = "[test]";
+
+        // Test "Build Host:"
+        check_version_field(
+            &mut results,
+            label,
+            "Build Host",
+            &"Build Host: x86_64-linux".to_lowercase(),
+            &["build host", "build-host", "host"],
+        );
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+
+        // Test "Build-Host:"
+        results.clear();
+        check_version_field(
+            &mut results,
+            label,
+            "Build Host",
+            &"Build-Host: x86_64-linux".to_lowercase(),
+            &["build host", "build-host", "host"],
+        );
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+
+        // Test just "Host:"
+        results.clear();
+        check_version_field(
+            &mut results,
+            label,
+            "Build Host",
+            &"Host: x86_64-linux".to_lowercase(),
+            &["build host", "build-host", "host"],
+        );
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
     }
 }

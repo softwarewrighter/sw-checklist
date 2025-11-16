@@ -5,6 +5,7 @@ This document tracks issues encountered during development, their root causes, a
 ## Table of Contents
 
 1. [Project Structure Assumptions](#project-structure-assumptions)
+2. [Overly Strict String Matching](#overly-strict-string-matching)
 
 ---
 
@@ -187,6 +188,165 @@ fn find_binary(root: &Path, name: &str) -> Option<PathBuf> {
 - [Cargo Workspaces Documentation](https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html)
 - [Cargo Manifest Format](https://doc.rust-lang.org/cargo/reference/manifest.html)
 - Commit: `2fe9bf4` - Refactor to support multi-crate projects
+
+---
+
+## Overly Strict String Matching
+
+**Date**: 2025-11-16
+**Issue**: Version field checks failed on scan3data despite having required info
+**Severity**: Medium - False negatives on valid projects
+
+### What Went Wrong
+
+The version output validation used exact string matching:
+- Required `"Copyright (c)"` but scan3data had `"Copyright:"`
+- Required `"MIT License"` but scan3data had `"License: MIT"`
+- Case-sensitive matching failed on variations like `"Build-Host:"` vs `"Build Host:"`
+
+This caused false failures on perfectly valid version output that used different formatting conventions.
+
+### Root Cause
+
+**Inflexible validation patterns**. The code used exact substring matching without considering:
+1. Different formatting conventions (with/without colons)
+2. Case variations
+3. Word order variations
+4. Different ways to express the same information
+
+### Why Wasn't It Caught Sooner?
+
+1. **Only tested on one project**: sw-checklist itself, which happened to use the exact format expected
+2. **No tests for format variations**: Didn't test different valid ways to format version output
+3. **Assumption of single format**: Assumed everyone would format version output identically
+
+### Prevention Strategy
+
+#### 1. Use Flexible Pattern Matching
+
+Instead of exact strings, use multiple acceptable patterns:
+
+```rust
+// BAD: Exact match only
+if version_output.contains("MIT License") { ... }
+
+// GOOD: Multiple patterns, case-insensitive
+let patterns = ["license", "mit", "apache", "gpl"];
+let lower = version_output.to_lowercase();
+if patterns.iter().any(|p| lower.contains(p)) { ... }
+```
+
+#### 2. Case-Insensitive Matching
+
+Always convert to lowercase for comparisons:
+
+```rust
+// BAD: Case-sensitive
+if output.contains("Copyright") { ... }
+
+// GOOD: Case-insensitive
+if output.to_lowercase().contains("copyright") { ... }
+```
+
+#### 3. Test Multiple Valid Formats
+
+Add tests for various valid formatting styles:
+
+```rust
+#[test]
+fn test_license_variations() {
+    // Test "MIT License"
+    // Test "License: MIT"
+    // Test "License: Apache-2.0"
+    // Test case variations
+}
+```
+
+#### 4. Provide Helpful Error Messages
+
+When validation fails, be clear about what's missing:
+
+```rust
+// BAD: Generic message
+"Version output should contain License"
+
+// GOOD: Specific, helpful message
+"There does not appear to be license info present in the -V/--version output"
+```
+
+### Process Changes
+
+#### Pre-Commit Checklist Addition
+
+Before committing validation code:
+- [ ] Tested with multiple valid format variations
+- [ ] Used case-insensitive matching where appropriate
+- [ ] Tested on projects with different conventions
+- [ ] Error messages are clear and actionable
+- [ ] No assumptions about exact formatting
+
+#### Testing Strategy
+
+For string matching/validation:
+1. Test the expected format
+2. Test common variations (with/without colons, hyphens, etc.)
+3. Test case variations (lowercase, uppercase, mixed)
+4. Test negative cases (missing info)
+5. Test on multiple real projects with different conventions
+
+### Code Patterns to Avoid
+
+#### Anti-Pattern: Exact String Matching
+```rust
+// BAD: Requires exact format
+if output.contains("Copyright (c)") {
+    pass()
+} else {
+    fail()
+}
+```
+
+#### Better Pattern: Multiple Patterns
+```rust
+// GOOD: Accepts variations
+let patterns = ["copyright (c)", "copyright:", "copyright"];
+if patterns.iter().any(|p| output.to_lowercase().contains(p)) {
+    pass()
+} else {
+    fail()
+}
+```
+
+#### Best Pattern: Dedicated Validation Function
+```rust
+// BEST: Reusable, testable, flexible
+fn check_version_field(
+    field_name: &str,
+    output: &str,
+    patterns: &[&str],
+) -> CheckResult {
+    let lower = output.to_lowercase();
+    let found = patterns.iter().any(|p| lower.contains(p));
+
+    if found {
+        CheckResult::pass(...)
+    } else {
+        CheckResult::fail(...)
+    }
+}
+```
+
+### Related Issues
+
+- [Project Structure Assumptions](#project-structure-assumptions) - Similar root cause (insufficient testing)
+
+### References
+
+- Commit: `[pending]` - Flexible version field validation
+- Tests added:
+  - `test_check_version_field_case_insensitive`
+  - `test_check_version_field_license_variations`
+  - `test_check_version_field_build_variations`
 
 ---
 
