@@ -73,6 +73,7 @@ struct CheckResult {
     name: String,
     passed: bool,
     message: String,
+    is_warning: bool,
 }
 
 impl CheckResult {
@@ -81,6 +82,7 @@ impl CheckResult {
             name: name.into(),
             passed: true,
             message: message.into(),
+            is_warning: false,
         }
     }
 
@@ -89,6 +91,16 @@ impl CheckResult {
             name: name.into(),
             passed: false,
             message: message.into(),
+            is_warning: false,
+        }
+    }
+
+    fn warn(name: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            passed: true,
+            message: message.into(),
+            is_warning: true,
         }
     }
 }
@@ -154,15 +166,26 @@ fn main() -> Result<()> {
     println!("Found {} Cargo.toml file(s)", cargo_tomls.len());
     println!();
 
-    let results = run_checks(&project_path, &cargo_tomls, cli.verbose)?;
+    let mut results = run_checks(&project_path, &cargo_tomls, cli.verbose)?;
+
+    // Add sw-install presence check
+    results.push(check_sw_install_presence());
 
     print_results(&results);
 
-    let passed = results.iter().filter(|r| r.passed).count();
+    let passed = results.iter().filter(|r| r.passed && !r.is_warning).count();
     let failed = results.iter().filter(|r| !r.passed).count();
+    let warnings = results.iter().filter(|r| r.is_warning).count();
 
     println!();
-    println!("Summary: {} passed, {} failed", passed, failed);
+    if warnings > 0 {
+        println!(
+            "Summary: {} passed, {} failed, {} warnings",
+            passed, failed, warnings
+        );
+    } else {
+        println!("Summary: {} passed, {} failed", passed, failed);
+    }
 
     if failed > 0 {
         std::process::exit(1);
@@ -312,6 +335,18 @@ fn check_crate_binaries(
                 crate_name,
                 verbose,
             ));
+
+            // Check binary freshness against installed version
+            if let Ok(home) = std::env::var("HOME") {
+                let installed_binary = PathBuf::from(&home)
+                    .join(".local/softwarewrighter/bin")
+                    .join(&binary_name);
+                results.push(check_binary_freshness(
+                    &binary_name,
+                    &binary_path,
+                    &installed_binary,
+                ));
+            }
         }
     }
 
@@ -860,12 +895,116 @@ fn run_command(binary: &Path, args: &[&str]) -> Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
+fn get_install_dir() -> Option<PathBuf> {
+    use std::env;
+
+    let home = env::var("HOME").ok()?;
+    Some(PathBuf::from(&home).join(".local/softwarewrighter/bin"))
+}
+
+fn check_sw_install_presence() -> CheckResult {
+    check_sw_install_presence_impl(None)
+}
+
+fn check_sw_install_presence_impl(install_dir: Option<&Path>) -> CheckResult {
+    let install_dir = match install_dir {
+        Some(dir) => dir.to_path_buf(),
+        None => match get_install_dir() {
+            Some(dir) => dir,
+            None => {
+                return CheckResult::warn("sw-install Check", "Could not determine HOME directory");
+            }
+        }
+    };
+
+    let sw_install_path = install_dir.join("sw-install");
+
+    if sw_install_path.exists() {
+        CheckResult::pass("sw-install Check", "sw-install is installed")
+    } else {
+        CheckResult::warn(
+            "sw-install Check",
+            "sw-install is not installed. Install from: https://github.com/softwarewrighter/sw-install",
+        )
+    }
+}
+
+fn check_binary_freshness(
+    binary_name: &str,
+    local_binary: &Path,
+    installed_binary: &Path,
+) -> CheckResult {
+    // Only warn if the installed binary exists
+    if !installed_binary.exists() {
+        return CheckResult::pass(
+            format!("Binary Freshness [{}]", binary_name),
+            format!("{} not yet installed", binary_name),
+        );
+    }
+
+    // Compare modification times
+    let local_metadata = match fs::metadata(local_binary) {
+        Ok(m) => m,
+        Err(_) => {
+            return CheckResult::pass(
+                format!("Binary Freshness [{}]", binary_name),
+                "Could not check local binary metadata",
+            );
+        }
+    };
+
+    let installed_metadata = match fs::metadata(installed_binary) {
+        Ok(m) => m,
+        Err(_) => {
+            return CheckResult::pass(
+                format!("Binary Freshness [{}]", binary_name),
+                "Could not check installed binary metadata",
+            );
+        }
+    };
+
+    let local_modified = match local_metadata.modified() {
+        Ok(t) => t,
+        Err(_) => {
+            return CheckResult::pass(
+                format!("Binary Freshness [{}]", binary_name),
+                "Could not determine local binary modification time",
+            );
+        }
+    };
+
+    let installed_modified = match installed_metadata.modified() {
+        Ok(t) => t,
+        Err(_) => {
+            return CheckResult::pass(
+                format!("Binary Freshness [{}]", binary_name),
+                "Could not determine installed binary modification time",
+            );
+        }
+    };
+
+    if local_modified > installed_modified {
+        CheckResult::warn(
+            format!("Binary Freshness [{}]", binary_name),
+            "Local build is newer than installed version. \
+                Manually acceptance test the updated project and reinstall via sw-install".to_string(),
+        )
+    } else {
+        CheckResult::pass(
+            format!("Binary Freshness [{}]", binary_name),
+            format!("{} is up to date", binary_name),
+        )
+    }
+}
+
 fn print_results(results: &[CheckResult]) {
     println!("Check Results:");
     println!("{}", "=".repeat(80));
 
     for result in results {
-        let status = if result.passed {
+        let status = if result.is_warning {
+            "⚠ WARN"
+        } else if result.passed {
             "✓ PASS"
         } else {
             "✗ FAIL"
@@ -1201,5 +1340,119 @@ tokio = "1.0"
         );
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
+    }
+
+    #[test]
+    fn test_check_result_warn() {
+        let warn = CheckResult::warn("Test Warning", "This is a warning");
+        assert!(warn.is_warning);
+        assert_eq!(warn.name, "Test Warning");
+        assert_eq!(warn.message, "This is a warning");
+    }
+
+    #[test]
+    fn test_check_sw_install_present() {
+        use tempfile::tempdir;
+
+        let temp = tempdir().unwrap();
+
+        // Test when sw-install does not exist
+        let result = check_sw_install_presence_impl(Some(temp.path()));
+        assert!(result.is_warning);
+        assert!(result.message.contains("sw-install"));
+        assert!(result.message.contains("not installed"));
+
+        // Test when sw-install exists
+        let sw_install_path = temp.path().join("sw-install");
+        fs::write(&sw_install_path, "fake sw-install").unwrap();
+
+        let result = check_sw_install_presence_impl(Some(temp.path()));
+        assert!(result.passed);
+        assert!(!result.is_warning);
+        assert_eq!(result.message, "sw-install is installed");
+    }
+
+    #[test]
+    fn test_check_binary_freshness_no_installed_binary() {
+        use tempfile::tempdir;
+
+        let temp = tempdir().unwrap();
+
+        // Create a fake binary in target/release
+        let target_dir = temp.path().join("target/release");
+        fs::create_dir_all(&target_dir).unwrap();
+        let local_binary = target_dir.join("test-binary");
+        fs::write(&local_binary, "test").unwrap();
+
+        // Non-existent installed binary
+        let installed_binary = PathBuf::from("/nonexistent/path/test-binary");
+
+        let result = check_binary_freshness("test-binary", &local_binary, &installed_binary);
+
+        // Should not warn if installed binary doesn't exist
+        assert!(!result.is_warning);
+        assert!(result.passed);
+    }
+
+    #[test]
+    fn test_check_binary_freshness_local_newer() {
+        use std::thread;
+        use std::time::Duration;
+        use tempfile::tempdir;
+
+        let temp = tempdir().unwrap();
+
+        // Create installed binary first
+        let installed_dir = temp.path().join("installed");
+        fs::create_dir_all(&installed_dir).unwrap();
+        let installed_binary = installed_dir.join("test-binary");
+        fs::write(&installed_binary, "old").unwrap();
+
+        // Wait a bit to ensure different timestamps
+        thread::sleep(Duration::from_millis(10));
+
+        // Create newer local binary
+        let local_dir = temp.path().join("target/release");
+        fs::create_dir_all(&local_dir).unwrap();
+        let local_binary = local_dir.join("test-binary");
+        fs::write(&local_binary, "new").unwrap();
+
+        let result = check_binary_freshness("test-binary", &local_binary, &installed_binary);
+
+        // Should warn because local is newer
+        assert!(result.is_warning);
+        assert!(result.message.contains("newer"));
+        assert!(result.message.contains("acceptance test"));
+        assert!(result.message.contains("sw-install"));
+    }
+
+    #[test]
+    fn test_check_binary_freshness_installed_newer() {
+        use std::thread;
+        use std::time::Duration;
+        use tempfile::tempdir;
+
+        let temp = tempdir().unwrap();
+
+        // Create local binary first
+        let local_dir = temp.path().join("target/release");
+        fs::create_dir_all(&local_dir).unwrap();
+        let local_binary = local_dir.join("test-binary");
+        fs::write(&local_binary, "old").unwrap();
+
+        // Wait a bit to ensure different timestamps
+        thread::sleep(Duration::from_millis(10));
+
+        // Create newer installed binary
+        let installed_dir = temp.path().join("installed");
+        fs::create_dir_all(&installed_dir).unwrap();
+        let installed_binary = installed_dir.join("test-binary");
+        fs::write(&installed_binary, "new").unwrap();
+
+        let result = check_binary_freshness("test-binary", &local_binary, &installed_binary);
+
+        // Should not warn because installed is newer or equal
+        assert!(!result.is_warning);
+        assert!(result.passed);
     }
 }
