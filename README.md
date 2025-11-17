@@ -20,6 +20,11 @@ CLI tool for validating Software Wrighter LLC project conformance requirements.
     - Build host
     - Build commit SHA
     - Build timestamp
+- **Modularity Checks**: For all Rust projects:
+  - **Function LOC**: Warns if functions exceed 25 lines, fails if over 50 lines
+  - **Module Function Count**: Warns if modules have >4 functions, fails if >7
+  - **Crate Module Count**: Warns if crates have >4 modules, fails if >7
+  - **Project Crate Count**: Warns if projects have >4 crates, fails if >7
 - **Extensible**: Easy to add new checks for different project types
 
 ## Installation
@@ -129,6 +134,30 @@ Summary: 6 passed, 0 failed
      - Build Host: `Build Host:`
      - Build Commit: `Build Commit:`
      - Build Time: `Build Time:`
+
+### All Rust Projects (Modularity)
+
+Following the 7±2 rule (Miller's Law) for cognitive limits:
+
+1. **Function Lines of Code (LOC)**:
+   - ⚠️ **Warning**: Functions with 26-50 lines
+   - ❌ **Fail**: Functions with >50 lines
+   - **Rationale**: Functions should do one thing well
+
+2. **Module Function Count**:
+   - ⚠️ **Warning**: Modules with 5-7 functions
+   - ❌ **Fail**: Modules with >7 functions
+   - **Rationale**: Modules should have a clear, focused purpose
+
+3. **Crate Module Count**:
+   - ⚠️ **Warning**: Crates with 5-7 modules
+   - ❌ **Fail**: Crates with >7 modules
+   - **Rationale**: Crates should be cohesive units
+
+4. **Project Crate Count**:
+   - ⚠️ **Warning**: Projects with 5-7 crates
+   - ❌ **Fail**: Projects with >7 crates
+   - **Rationale**: Projects should have well-scoped boundaries
 
 ## Dogfooding
 
