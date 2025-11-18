@@ -12,36 +12,36 @@ graph TB
     end
 
     subgraph "Entry Point"
-        Main[main.rs<br/>CLI Parser]
-        Args[Command Line<br/>Arguments]
+        Main[main.rs CLI Parser]
+        Args[Command Line Arguments]
     end
 
     subgraph "Discovery Layer"
-        FindCargo[find_cargo_tomls<br/>Walk Directory Tree]
-        DetectType[Detect Project Type<br/>CLI/WASM/Library]
+        FindCargo[find_cargo_tomls Walk Directory Tree]
+        DetectType[Detect Project Type CLI/WASM/Library]
     end
 
     subgraph "Orchestration Layer"
-        RunChecks[run_checks<br/>Iterate & Dispatch]
+        RunChecks[run_checks Iterate & Dispatch]
         CheckRouter{Check Router}
     end
 
     subgraph "Check Modules"
-        ClapMod[checks::clap<br/>CLI Validation]
-        WASMMod[checks::wasm<br/>WASM Validation]
-        ModMod[checks::modularity<br/>Size Validation]
-        TestMod[checks::tests<br/>Test Validation]
-        InstallMod[checks::install<br/>Installation Checks]
+        ClapMod[checks::clap CLI Validation]
+        WASMMod[checks::wasm WASM Validation]
+        ModMod[checks::modularity Size Validation]
+        TestMod[checks::tests Test Validation]
+        InstallMod[checks::install Installation Checks]
     end
 
     subgraph "Data Model"
-        CheckResult[CheckResult<br/>pass/fail/warn]
+        CheckResult[CheckResult pass/fail/warn]
     end
 
     subgraph "Output Layer"
-        Aggregate[Result Aggregation<br/>Count Pass/Fail/Warn]
-        Format[Format Output<br/>Terminal Display]
-        Exit[Exit Code<br/>0=pass, 1=fail]
+        Aggregate[Result Aggregation Count Pass/Fail/Warn]
+        Format[Format Output Terminal Display]
+        Exit[Exit Code 0=pass, 1=fail]
     end
 
     User --> Terminal
@@ -105,17 +105,17 @@ graph TB
 **Algorithm**:
 ```mermaid
 flowchart TD
-    Start([Start Discovery]) --> Walk[Walk Directory Tree<br/>using walkdir]
-    Walk --> Find{Found<br/>Cargo.toml?}
+    Start([Start Discovery]) --> Walk[Walk Directory Tree using walkdir]
+    Walk --> Find{Found Cargo.toml?}
     Find -->|Yes| Collect[Collect Path]
     Find -->|No| Continue
     Collect --> Continue[Continue Walking]
-    Continue --> More{More<br/>Entries?}
+    Continue --> More{More Entries?}
     More -->|Yes| Find
     More -->|No| Analyze[Analyze Dependencies]
-    Analyze --> HasClap{Contains<br/>clap?}
+    Analyze --> HasClap{Contains clap?}
     HasClap -->|Yes| MarkCLI[Mark as CLI]
-    HasClap -->|No| HasWASM{Contains<br/>wasm-bindgen?}
+    HasClap -->|No| HasWASM{Contains wasm-bindgen?}
     HasWASM -->|Yes| MarkWASM[Mark as WASM]
     HasWASM -->|No| MarkLib[Mark as Library]
     MarkCLI --> Return([Return Crates])
@@ -413,7 +413,7 @@ graph LR
 graph TD
     Op[Fallible Operation] --> Try{Try Operation}
     Try -->|Success| UseValue[Use Value]
-    Try -->|Error| AddContext[Add Context<br/>with_context]
+    Try -->|Error| AddContext[Add Context with_context]
     AddContext --> PropagateUp[Propagate with ?]
     PropagateUp --> Caller{Caller Handles}
     Caller -->|Can Handle| Recover[Recover/Skip]

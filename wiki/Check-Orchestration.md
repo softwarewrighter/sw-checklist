@@ -445,9 +445,9 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    Start([Process Crate]) --> TryRead{Try read<br/>Cargo.toml}
+    Start([Process Crate]) --> TryRead{Try read Cargo.toml}
 
-    TryRead -->|Success| Parse{Try parse<br/>TOML}
+    TryRead -->|Success| Parse{Try parse TOML}
     TryRead -->|Error| LogError1[Log error if verbose]
 
     LogError1 --> Skip1[Skip this crate]
@@ -459,7 +459,7 @@ flowchart TD
     LogError2 --> Skip2[Skip this crate]
     Skip2 --> NextCrate
 
-    RunChecks --> CheckResult{Check<br/>succeeds?}
+    RunChecks --> CheckResult{Check succeeds?}
 
     CheckResult -->|Success| CollectResults[Collect results]
     CheckResult -->|Error| LogError3[Log error if verbose]
@@ -469,7 +469,7 @@ flowchart TD
 
     CollectResults --> NextCrate
 
-    NextCrate --> More{More<br/>crates?}
+    NextCrate --> More{More crates?}
 
     More -->|Yes| Start
     More -->|No| Aggregate[Aggregate all results]

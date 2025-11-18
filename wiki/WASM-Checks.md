@@ -145,27 +145,27 @@ favicon.ico should be:
 ```mermaid
 flowchart TD
     Start([Start Footer Check]) --> FindRS[Find all .rs files]
-    FindRS --> LoopFiles{For each<br/>.rs file}
+    FindRS --> LoopFiles{For each .rs file}
 
     LoopFiles -->|Process| ReadFile[Read file content]
-    LoopFiles -->|Done| CheckFound{Footer<br/>found?}
+    LoopFiles -->|Done| CheckFound{Footer found?}
 
-    ReadFile --> SearchFooter{Contains<br/>'footer' or<br/>'Footer'?}
+    ReadFile --> SearchFooter{Contains 'footer' or 'Footer'?}
 
     SearchFooter -->|Yes| CheckFields[Check required fields]
     SearchFooter -->|No| LoopFiles
 
-    CheckFields --> CheckCopy{Has<br/>Copyright?}
+    CheckFields --> CheckCopy{Has Copyright?}
     CheckCopy -->|Yes| PassCopy[PASS: Copyright]
     CheckCopy -->|No| FailCopy[FAIL: Copyright]
 
-    PassCopy --> CheckLic{Has<br/>License?}
+    PassCopy --> CheckLic{Has License?}
     FailCopy --> CheckLic
 
     CheckLic -->|Yes| PassLic[PASS: License]
     CheckLic -->|No| FailLic[FAIL: License]
 
-    PassLic --> CheckRepo{Has<br/>Repository?}
+    PassLic --> CheckRepo{Has Repository?}
     FailLic --> CheckRepo
 
     CheckRepo -->|Yes| PassRepo[PASS: Repository]

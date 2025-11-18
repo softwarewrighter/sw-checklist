@@ -13,8 +13,8 @@ sw-checklist uses a Test-Driven Development (TDD) approach with comprehensive un
 **Process**:
 ```mermaid
 graph LR
-    Red[🔴 RED<br/>Write Failing Test] --> Green[🟢 GREEN<br/>Make It Pass]
-    Green --> Refactor[🔵 REFACTOR<br/>Clean Up Code]
+    Red[🔴 RED Write Failing Test] --> Green[🟢 GREEN Make It Pass]
+    Green --> Refactor[🔵 REFACTOR Clean Up Code]
     Refactor --> Red
 
     style Red fill:#ffe1e1

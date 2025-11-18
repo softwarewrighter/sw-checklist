@@ -12,17 +12,17 @@ Modularity checks validate that code is organized into manageable,comprehensible
 
 ```mermaid
 graph TD
-    Small[Small Functions<br/><25 LOC] --> Easy[Easy to<br/>Understand]
-    Few[Few Functions<br/>≤4 per Module] --> Clear[Clear<br/>Purpose]
-    Limited[Limited Modules<br/>≤4 per Crate] --> Cohesive[Cohesive<br/>Units]
-    Bounded[Bounded Crates<br/>≤4 per Project] --> Scoped[Well-Scoped<br/>Project]
+    Small[Small Functions <25 LOC] --> Easy[Easy to Understand]
+    Few[Few Functions ≤4 per Module] --> Clear[Clear Purpose]
+    Limited[Limited Modules ≤4 per Crate] --> Cohesive[Cohesive Units]
+    Bounded[Bounded Crates ≤4 per Project] --> Scoped[Well-Scoped Project]
 
-    Easy --> Maintain[Easier to<br/>Maintain]
+    Easy --> Maintain[Easier to Maintain]
     Clear --> Maintain
     Cohesive --> Maintain
     Scoped --> Maintain
 
-    Maintain --> Quality[Higher Code<br/>Quality]
+    Maintain --> Quality[Higher Code Quality]
 
     style Quality fill:#e1ffe1
 ```
@@ -57,7 +57,7 @@ flowchart TD
     ReadFile --> InitVars[i = 0, function_count = 0]
     InitVars --> Loop{i < lines.len}
 
-    Loop -->|Yes| CheckLine{Line matches<br/>function signature?}
+    Loop -->|Yes| CheckLine{Line matches function signature?}
     Loop -->|No| Return([Return Results])
 
     CheckLine -->|No| Increment[i++]
@@ -66,7 +66,7 @@ flowchart TD
     Increment --> Loop
 
     Extract --> FindBrace[Find opening brace]
-    FindBrace --> InitCount[brace_count = 0<br/>brace_line = current]
+    FindBrace --> InitCount[brace_count = 0 brace_line = current]
 
     InitCount --> BraceLoop{Scan lines}
 
@@ -75,7 +75,7 @@ flowchart TD
     ReadChar -->|char = '}'| DecBrace[brace_count--]
     ReadChar -->|other| BraceLoop
 
-    IncBrace --> CheckZero{brace_count<br/>== 0?}
+    IncBrace --> CheckZero{brace_count == 0?}
     DecBrace --> CheckZero
 
     CheckZero -->|No| BraceLoop

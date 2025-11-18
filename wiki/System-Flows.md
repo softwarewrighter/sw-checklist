@@ -86,21 +86,21 @@ flowchart TD
     Start([User runs sw-checklist]) --> Parse[Parse CLI Arguments]
     Parse --> Canon[Canonicalize Path]
     Canon --> Find[Find Cargo.toml Files]
-    Find --> Empty{Any<br/>found?}
+    Find --> Empty{Any found?}
 
     Empty -->|No| Error[Print Error]
     Error --> Exit1[Exit Code 1]
 
     Empty -->|Yes| Detect[Detect Project Types]
     Detect --> Print1[Print Project Info]
-    Print1 --> Loop{For each<br/>Cargo.toml}
+    Print1 --> Loop{For each Cargo.toml}
 
     Loop -->|Process| ParseToml[Parse Cargo.toml]
     ParseToml --> ExtractName[Extract Crate Name]
-    ExtractName --> HasClap{Has clap<br/>dependency?}
+    ExtractName --> HasClap{Has clap dependency?}
 
     HasClap -->|Yes| CheckClap[Run Clap Checks]
-    HasClap -->|No| HasWasm{Has wasm<br/>dependency?}
+    HasClap -->|No| HasWasm{Has wasm dependency?}
 
     CheckClap --> AlwaysMod[Run Modularity Checks]
     HasWasm -->|Yes| CheckWasm[Run WASM Checks]
@@ -114,7 +114,7 @@ flowchart TD
     AddProject --> PrintResults[Print Check Results]
     PrintResults --> Summary[Calculate Summary]
     Summary --> PrintSum[Print Summary]
-    PrintSum --> Failed{Any<br/>failures?}
+    PrintSum --> Failed{Any failures?}
 
     Failed -->|Yes| Exit1
     Failed -->|No| Exit0[Exit Code 0]
@@ -162,18 +162,18 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    Start([Start Type Detection]) --> Init[Initialize flags:<br/>has_cli, has_wasm, has_yew]
+    Start([Start Type Detection]) --> Init[Initialize flags: has_cli, has_wasm, has_yew]
 
-    Init --> LoopStart{For each<br/>Cargo.toml}
+    Init --> LoopStart{For each Cargo.toml}
 
     LoopStart -->|Process| Read[Read Cargo.toml content]
-    Read --> CheckClap{Contains<br/>'clap'?}
+    Read --> CheckClap{Contains 'clap'?}
     CheckClap -->|Yes| SetCLI[has_cli = true]
-    CheckClap -->|No| CheckWasm{Contains<br/>'wasm-bindgen'?}
+    CheckClap -->|No| CheckWasm{Contains 'wasm-bindgen'?}
 
     SetCLI --> CheckWasm
     CheckWasm -->|Yes| SetWasm[has_wasm = true]
-    CheckWasm -->|No| CheckYew{Contains<br/>'yew'?}
+    CheckWasm -->|No| CheckYew{Contains 'yew'?}
 
     SetWasm --> CheckYew
     CheckYew -->|Yes| SetYew[has_yew = true]
@@ -181,7 +181,7 @@ flowchart TD
 
     SetYew --> LoopStart
 
-    LoopStart -->|Done| Determine{Determine<br/>Type}
+    LoopStart -->|Done| Determine{Determine Type}
 
     Determine -->|has_cli && has_yew| TypeCLIYew[Type: CLI + Yew]
     Determine -->|has_cli && has_wasm| TypeCLIWasm[Type: CLI + WASM]
@@ -259,7 +259,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    Start([check_rust_crate]) --> CheckDep{Has clap<br/>dependency?}
+    Start([check_rust_crate]) --> CheckDep{Has clap dependency?}
 
     CheckDep -->|No| SkipCheck[Return: Skipped]
     CheckDep -->|Yes| AddPass[Add: Dependency Check PASS]
@@ -271,21 +271,21 @@ flowchart TD
     GetBinNames --> SearchDebug[Search target/debug/]
     SearchDebug --> SearchRelease[Search target/release/]
 
-    SearchRelease --> AnyBin{Found any<br/>binaries?}
+    SearchRelease --> AnyBin{Found any binaries?}
 
     AnyBin -->|No| WarnNoBin[Add: No Binary WARN]
-    AnyBin -->|Yes| LoopBin{For each<br/>binary}
+    AnyBin -->|Yes| LoopBin{For each binary}
 
     WarnNoBin --> Return([Return Results])
 
     LoopBin -->|Process| ExecHelp[Execute: binary -h]
     ExecHelp --> ExecHelpLong[Execute: binary --help]
-    ExecHelpLong --> CompareHelp{--help longer<br/>than -h?}
+    ExecHelpLong --> CompareHelp{--help longer than -h?}
 
     CompareHelp -->|Yes| PassHelp[Add: Help Length PASS]
     CompareHelp -->|No| FailHelp[Add: Help Length FAIL]
 
-    PassHelp --> CheckAI{--help contains<br/>AI instructions?}
+    PassHelp --> CheckAI{--help contains AI instructions?}
     FailHelp --> CheckAI
 
     CheckAI -->|Yes| PassAI[Add: AI Instructions PASS]
@@ -295,7 +295,7 @@ flowchart TD
     FailAI --> ExecVersion
     ExecVersion --> ExecVersionLong[Execute: binary --version]
 
-    ExecVersionLong --> CompareVer{-V equals<br/>--version?}
+    ExecVersionLong --> CompareVer{-V equals --version?}
 
     CompareVer -->|Yes| PassVer[Add: Version Consistency PASS]
     CompareVer -->|No| FailVer[Add: Version Consistency FAIL]
@@ -303,35 +303,35 @@ flowchart TD
     PassVer --> CheckFields[Check version fields]
     FailVer --> CheckFields
 
-    CheckFields --> CheckCopy{Contains<br/>Copyright?}
+    CheckFields --> CheckCopy{Contains Copyright?}
     CheckCopy -->|Yes| PassCopy[Add: Copyright PASS]
     CheckCopy -->|No| FailCopy[Add: Copyright FAIL]
 
-    PassCopy --> CheckLic{Contains<br/>License?}
+    PassCopy --> CheckLic{Contains License?}
     FailCopy --> CheckLic
 
     CheckLic -->|Yes| PassLic[Add: License PASS]
     CheckLic -->|No| FailLic[Add: License FAIL]
 
-    PassLic --> CheckRepo{Contains<br/>Repository?}
+    PassLic --> CheckRepo{Contains Repository?}
     FailLic --> CheckRepo
 
     CheckRepo -->|Yes| PassRepo[Add: Repository PASS]
     CheckRepo -->|No| FailRepo[Add: Repository FAIL]
 
-    PassRepo --> CheckHost{Contains<br/>Build Host?}
+    PassRepo --> CheckHost{Contains Build Host?}
     FailRepo --> CheckHost
 
     CheckHost -->|Yes| PassHost[Add: Build Host PASS]
     CheckHost -->|No| FailHost[Add: Build Host FAIL]
 
-    PassHost --> CheckCommit{Contains<br/>Build Commit?}
+    PassHost --> CheckCommit{Contains Build Commit?}
     FailHost --> CheckCommit
 
     CheckCommit -->|Yes| PassCommit[Add: Build Commit PASS]
     CheckCommit -->|No| FailCommit[Add: Build Commit FAIL]
 
-    PassCommit --> CheckTime{Contains<br/>Build Time?}
+    PassCommit --> CheckTime{Contains Build Time?}
     FailCommit --> CheckTime
 
     CheckTime -->|Yes| PassTime[Add: Build Time PASS]
@@ -358,13 +358,13 @@ flowchart TD
     FindRS --> InitResults[Initialize results Vec]
     InitResults --> InitCounts[Initialize module_counts HashMap]
 
-    InitCounts --> LoopFiles{For each<br/>.rs file}
+    InitCounts --> LoopFiles{For each .rs file}
 
     LoopFiles -->|Process| ReadFile[Read file lines]
     ReadFile --> InitFuncCount[function_count = 0]
-    InitFuncCount --> LoopLines{For each<br/>line}
+    InitFuncCount --> LoopLines{For each line}
 
-    LoopLines -->|Process| CheckFunc{Line starts with<br/>fn or pub fn?}
+    LoopLines -->|Process| CheckFunc{Line starts with fn or pub fn?}
 
     CheckFunc -->|No| NextLine[i++]
     CheckFunc -->|Yes| ExtractName[Extract function name]
@@ -390,10 +390,10 @@ flowchart TD
 
     NextLine --> LoopLines
 
-    LoopLines -->|Done| CheckModFunc{function_count<br/>> 7?}
+    LoopLines -->|Done| CheckModFunc{function_count > 7?}
 
     CheckModFunc -->|Yes| FailModFunc[Add: Module Function Count FAIL]
-    CheckModFunc -->|No| WarnModFunc{function_count<br/>> 4?}
+    CheckModFunc -->|No| WarnModFunc{function_count > 4?}
 
     WarnModFunc -->|Yes| WarnModFuncRes[Add: Module Function Count WARN]
     WarnModFunc -->|No| PassModFunc[Add: Module Function Count PASS]
@@ -402,10 +402,10 @@ flowchart TD
     WarnModFuncRes --> StoreCount
     PassModFunc --> StoreCount
 
-    StoreCount --> CheckFileLOC{File lines<br/>> 500?}
+    StoreCount --> CheckFileLOC{File lines > 500?}
 
     CheckFileLOC -->|Yes| FailFileLOC[Add: File LOC FAIL]
-    CheckFileLOC -->|No| WarnFileLOC{File lines<br/>> 350?}
+    CheckFileLOC -->|No| WarnFileLOC{File lines > 350?}
 
     WarnFileLOC -->|Yes| WarnFileLOCRes[Add: File LOC WARN]
     WarnFileLOC -->|No| PassFileLOC[Add: File LOC PASS]
@@ -415,10 +415,10 @@ flowchart TD
     PassFileLOC --> LoopFiles
 
     LoopFiles -->|Done| CountMods[module_count = files.len()]
-    CountMods --> CheckCrateMod{module_count<br/>> 7?}
+    CountMods --> CheckCrateMod{module_count > 7?}
 
     CheckCrateMod -->|Yes| FailCrateMod[Add: Crate Module Count FAIL]
-    CheckCrateMod -->|No| WarnCrateMod{module_count<br/>> 4?}
+    CheckCrateMod -->|No| WarnCrateMod{module_count > 4?}
 
     WarnCrateMod -->|Yes| WarnCrateModRes[Add: Crate Module Count WARN]
     WarnCrateMod -->|No| PassCrateMod[Add: Crate Module Count PASS]
@@ -543,16 +543,16 @@ flowchart TD
     Start([Function Call]) --> TryOp{Try Operation}
 
     TryOp -->|Success| UseValue[Use Result Value]
-    TryOp -->|Error| AddContext[Add context with<br/>with_context]
+    TryOp -->|Error| AddContext[Add context with with_context]
 
-    AddContext --> Propagate[Propagate with ?<br/>operator]
-    Propagate --> Caller{Caller can<br/>handle?}
+    AddContext --> Propagate[Propagate with ? operator]
+    Propagate --> Caller{Caller can handle?}
 
     Caller -->|Yes - Skip| Skip[Continue with other checks]
     Caller -->|Yes - Recover| Recover[Use default value]
     Caller -->|No| PropUp[Propagate up further]
 
-    PropUp --> Main{Reached<br/>main?}
+    PropUp --> Main{Reached main?}
 
     Main -->|Yes| PrintErr[Print error with context]
     Main -->|No| Caller

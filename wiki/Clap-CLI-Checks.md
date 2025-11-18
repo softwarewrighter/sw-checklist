@@ -96,14 +96,14 @@ pub fn get_binary_names(cargo_toml_path: &Path) -> Result<Vec<String>> {
 
 ```mermaid
 flowchart TD
-    Start([Start Binary Search]) --> GetNames[Get binary names<br/>from Cargo.toml]
+    Start([Start Binary Search]) --> GetNames[Get binary names from Cargo.toml]
     GetNames --> SearchRelease[Search target/release/]
 
-    SearchRelease --> FoundRelease{Found in<br/>release?}
+    SearchRelease --> FoundRelease{Found in release?}
     FoundRelease -->|Yes| UseRelease[Use release binary]
     FoundRelease -->|No| SearchDebug[Search target/debug/]
 
-    SearchDebug --> FoundDebug{Found in<br/>debug?}
+    SearchDebug --> FoundDebug{Found in debug?}
     FoundDebug -->|Yes| UseDebug[Use debug binary]
     FoundDebug -->|No| NotFound[Binary not found]
 

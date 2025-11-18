@@ -4,16 +4,16 @@ This directory contains comprehensive documentation for the sw-checklist project
 
 ## Contents
 
-- **[Home.md](Home.md)** - Overview page with navigation and quick links
-- **[Architecture-Overview.md](Architecture-Overview.md)** - System architecture with block diagrams
-- **[System-Flows.md](System-Flows.md)** - Sequence diagrams and execution flows
-- **[Component-Details.md](Component-Details.md)** - Detailed component documentation
-- **[Check-Orchestration.md](Check-Orchestration.md)** - Check coordination details
-- **[Modularity-Checks.md](Modularity-Checks.md)** - Modularity validation guide
-- **[Clap-CLI-Checks.md](Clap-CLI-Checks.md)** - CLI validation details
-- **[WASM-Checks.md](WASM-Checks.md)** - WASM validation details
-- **[Design-Decisions.md](Design-Decisions.md)** - Architectural Decision Records
-- **[Testing-Strategy.md](Testing-Strategy.md)** - Test organization and coverage
+- **[Home.md](Home)** - Overview page with navigation and quick links
+- **[Architecture-Overview.md](Architecture-Overview)** - System architecture with block diagrams
+- **[System-Flows.md](System-Flows)** - Sequence diagrams and execution flows
+- **[Component-Details.md](Component-Details)** - Detailed component documentation
+- **[Check-Orchestration.md](Check-Orchestration)** - Check coordination details
+- **[Modularity-Checks.md](Modularity-Checks)** - Modularity validation guide
+- **[Clap-CLI-Checks.md](Clap-CLI-Checks)** - CLI validation details
+- **[WASM-Checks.md](WASM-Checks)** - WASM validation details
+- **[Design-Decisions.md](Design-Decisions)** - Architectural Decision Records
+- **[Testing-Strategy.md](Testing-Strategy)** - Test organization and coverage
 
 ## Features
 
