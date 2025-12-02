@@ -503,7 +503,7 @@ Installs to: `~/.local/softwarewrighter/bin/sw-checklist`
 
 **Manual**:
 ```bash
-cp target/release/sw-checklist ~/.local/bin/
+cp target/release/sw-checklist ~/.local/softwarewrighter/bin/
 ```
 
 ## Future Architecture Changes

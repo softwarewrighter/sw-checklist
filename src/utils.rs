@@ -32,9 +32,12 @@ pub fn extract_function_name(line: &str) -> String {
     "unknown".to_string()
 }
 
-/// Get the sw-install directory (typically ~/.local/bin)
+/// Get the sw-install directory (typically ~/.local/softwarewrighter/bin)
 pub fn get_install_dir() -> Option<PathBuf> {
-    std::env::var("HOME")
-        .ok()
-        .map(|home| PathBuf::from(home).join(".local").join("bin"))
+    std::env::var("HOME").ok().map(|home| {
+        PathBuf::from(home)
+            .join(".local")
+            .join("softwarewrighter")
+            .join("bin")
+    })
 }

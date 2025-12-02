@@ -240,10 +240,18 @@ fn run_checks(
         // Check crates that use clap or are WASM projects
         if has_clap {
             let crate_dir = cargo_toml_path.parent().unwrap();
-            results.extend(checks::clap::check_rust_crate(project_root, crate_dir, verbose)?);
+            results.extend(checks::clap::check_rust_crate(
+                project_root,
+                crate_dir,
+                verbose,
+            )?);
         } else if is_wasm {
             let crate_dir = cargo_toml_path.parent().unwrap();
-            results.extend(checks::wasm::check_wasm_crate(project_root, crate_dir, verbose)?);
+            results.extend(checks::wasm::check_wasm_crate(
+                project_root,
+                crate_dir,
+                verbose,
+            )?);
         }
 
         // Run modularity checks on all crates
