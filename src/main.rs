@@ -168,8 +168,17 @@ fn main() -> Result<()> {
     // Add sw-install presence check
     results.push(checks::install::check_sw_install_presence());
 
-    // Add project crate count check
-    let crate_count = cargo_tomls.len();
+    // Add project crate count check (exclude workspace Cargo.toml files)
+    let crate_count = cargo_tomls
+        .iter()
+        .filter(|path| {
+            if let Ok(content) = fs::read_to_string(path) {
+                !discovery::is_workspace(&content)
+            } else {
+                true // count if we can't read it
+            }
+        })
+        .count();
     if crate_count > 7 {
         results.push(CheckResult::fail(
             "Project Crate Count",
