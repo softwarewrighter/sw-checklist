@@ -9,8 +9,8 @@ use handler_trait::{CheckContext, Handler};
 use std::fs;
 use std::path::Path;
 
-use crate::output::{print_results, print_summary};
 use crate::setup::{create_handlers, extract_crate_name};
+use cli_output::{print_results, print_summary};
 
 /// Run all checks and return exit code
 pub fn run(config: &Config) -> Result<i32> {

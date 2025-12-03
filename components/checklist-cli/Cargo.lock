@@ -200,12 +200,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cli-output"
+version = "0.1.0"
+dependencies = [
+ "checklist-config",
+ "checklist-result",
+]
+
+[[package]]
 name = "cli-runner"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "checklist-config",
  "checklist-result",
+ "cli-output",
  "discovery-cargo",
  "discovery-crate",
  "handler-cargo",

@@ -19,3 +19,4 @@ handler-clap.workspace = true
 handler-wasm.workspace = true
 handler-modularity.workspace = true
 handler-cargo.workspace = true
+cli-output.workspace = true

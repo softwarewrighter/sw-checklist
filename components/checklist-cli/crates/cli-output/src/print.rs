@@ -1,29 +1,27 @@
-//! Output formatting for check results
+//! Print functions for check results
 
 use checklist_config::Config;
 use checklist_result::{CheckResult, CheckStatus};
 
-/// Print per-check results (only in verbose mode)
+use crate::format::{is_issue, print_result};
+
+const MAX_ISSUES_TO_SHOW: usize = 5;
+
+/// Print per-check results (all in verbose mode, issues only otherwise)
 pub fn print_results(results: &[CheckResult], config: &Config) {
-    if !config.verbose() {
-        return;
-    }
-    for result in results {
-        println!(
-            "[{}] {}: {}",
-            status_str(result.status),
-            result.name,
-            result.message
-        );
+    if config.verbose() {
+        results.iter().for_each(print_result);
+    } else {
+        print_issues_summary(results);
     }
 }
 
-fn status_str(status: CheckStatus) -> &'static str {
-    match status {
-        CheckStatus::Pass => "\x1b[32mPASS\x1b[0m",
-        CheckStatus::Fail => "\x1b[31mFAIL\x1b[0m",
-        CheckStatus::Warn => "\x1b[33mWARN\x1b[0m",
-        CheckStatus::Info => "\x1b[36mINFO\x1b[0m",
+fn print_issues_summary(results: &[CheckResult]) {
+    let issues: Vec<_> = results.iter().filter(|r| is_issue(r.status)).collect();
+    match issues.len() {
+        0 => {}
+        1..=MAX_ISSUES_TO_SHOW => issues.iter().for_each(|r| print_result(r)),
+        _ => println!("Run with -v/--verbose for details"),
     }
 }
 

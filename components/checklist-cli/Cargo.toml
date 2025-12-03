@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/cli-args",
+    "crates/cli-output",
     "crates/cli-runner",
     "crates/sw-checklist",
 ]
@@ -44,4 +45,5 @@ handler-modularity = { path = "../checklist-handler-modularity/crates/handler-mo
 
 # Internal - this component
 cli-args = { path = "crates/cli-args" }
+cli-output = { path = "crates/cli-output" }
 cli-runner = { path = "crates/cli-runner" }
