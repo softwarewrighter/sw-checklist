@@ -1,0 +1,13 @@
+[package]
+name = "handler-trait"
+description = "Handler trait for sw-checklist checks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+checklist-result.workspace = true
+checklist-config.workspace = true
+discovery-crate.workspace = true
+anyhow.workspace = true

@@ -1,0 +1,21 @@
+[package]
+name = "cli-runner"
+description = "CLI runner for sw-checklist"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+
+[dependencies]
+anyhow.workspace = true
+checklist-result.workspace = true
+checklist-config.workspace = true
+discovery-cargo.workspace = true
+discovery-crate.workspace = true
+handler-trait.workspace = true
+handler-clap.workspace = true
+handler-wasm.workspace = true
+handler-modularity.workspace = true
+handler-cargo.workspace = true

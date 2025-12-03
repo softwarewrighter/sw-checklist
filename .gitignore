@@ -1,2 +1,10 @@
-/target
+# Build artifacts - each component workspace has its own target/
+**/target/
+
+# Cargo.lock for library components (CLI component's Cargo.lock should be committed)
+components/checklist-model/Cargo.lock
+components/checklist-discovery/Cargo.lock
+components/checklist-handlers/Cargo.lock
+
+# Test subjects
 /test_subjects

@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/handler-trait",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/softwarewrighter/sw-checklist"
+
+[workspace.dependencies]
+anyhow = "1.0"
+
+# Internal - from checklist-model
+checklist-result = { path = "../checklist-model/crates/checklist-result" }
+checklist-config = { path = "../checklist-model/crates/checklist-config" }
+
+# Internal - from checklist-discovery
+discovery-crate = { path = "../checklist-discovery/crates/discovery-crate" }

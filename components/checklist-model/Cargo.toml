@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/checklist-result",
+    "crates/checklist-config",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/softwarewrighter/sw-checklist"
+
+[workspace.dependencies]
+checklist-result = { path = "crates/checklist-result" }
+checklist-config = { path = "crates/checklist-config" }

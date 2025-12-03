@@ -1,0 +1,10 @@
+[package]
+name = "discovery-cargo"
+description = "Cargo.toml discovery for sw-checklist"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+walkdir.workspace = true

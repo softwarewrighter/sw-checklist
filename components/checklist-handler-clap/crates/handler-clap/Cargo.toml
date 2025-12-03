@@ -1,0 +1,16 @@
+[package]
+name = "handler-clap"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+checklist-result.workspace = true
+checklist-config.workspace = true
+discovery-crate.workspace = true
+handler-trait.workspace = true
+clap-binary.workspace = true
+clap-help.workspace = true
+clap-version.workspace = true

@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/discovery-cargo",
+    "crates/discovery-crate",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/softwarewrighter/sw-checklist"
+
+[workspace.dependencies]
+walkdir = "2.5"
+toml = "0.8"
+
+discovery-cargo = { path = "crates/discovery-cargo" }
+discovery-crate = { path = "crates/discovery-crate" }

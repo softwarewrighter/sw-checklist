@@ -1,0 +1,9 @@
+[package]
+name = "clap-version"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+checklist-result.workspace = true

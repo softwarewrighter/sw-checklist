@@ -1,0 +1,12 @@
+[package]
+name = "cli-args"
+description = "CLI argument parsing for sw-checklist"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+
+[dependencies]
+clap.workspace = true

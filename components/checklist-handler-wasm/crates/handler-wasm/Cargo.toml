@@ -1,0 +1,14 @@
+[package]
+name = "handler-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+checklist-result.workspace = true
+checklist-config.workspace = true
+discovery-crate.workspace = true
+handler-trait.workspace = true
+wasm-html.workspace = true

@@ -1,0 +1,10 @@
+[package]
+name = "clap-binary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+checklist-result.workspace = true
+toml.workspace = true

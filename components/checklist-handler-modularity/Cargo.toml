@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/handler-modularity",
+    "crates/modularity-loc",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/softwarewrighter/sw-checklist"
+
+[workspace.dependencies]
+anyhow = "1.0"
+walkdir = "2.5"
+
+# Internal - from checklist-model
+checklist-result = { path = "../checklist-model/crates/checklist-result" }
+checklist-config = { path = "../checklist-model/crates/checklist-config" }
+
+# Internal - from checklist-discovery
+discovery-crate = { path = "../checklist-discovery/crates/discovery-crate" }
+
+# Internal - from checklist-handler-trait
+handler-trait = { path = "../checklist-handler-trait/crates/handler-trait" }
+
+# Internal - this component
+modularity-loc = { path = "crates/modularity-loc" }

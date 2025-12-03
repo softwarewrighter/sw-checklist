@@ -1,0 +1,47 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/cli-args",
+    "crates/cli-runner",
+    "crates/sw-checklist",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/softwarewrighter/sw-checklist"
+
+[workspace.dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive", "cargo", "wrap_help"] }
+const_format = "0.2"
+chrono = "0.4"
+hostname = "0.4"
+
+# Internal - from checklist-model
+checklist-result = { path = "../checklist-model/crates/checklist-result" }
+checklist-config = { path = "../checklist-model/crates/checklist-config" }
+
+# Internal - from checklist-discovery
+discovery-cargo = { path = "../checklist-discovery/crates/discovery-cargo" }
+discovery-crate = { path = "../checklist-discovery/crates/discovery-crate" }
+
+# Internal - from checklist-handler-trait
+handler-trait = { path = "../checklist-handler-trait/crates/handler-trait" }
+
+# Internal - from checklist-handler-cargo
+handler-cargo = { path = "../checklist-handler-cargo/crates/handler-cargo" }
+
+# Internal - from checklist-handler-clap
+handler-clap = { path = "../checklist-handler-clap/crates/handler-clap" }
+
+# Internal - from checklist-handler-wasm
+handler-wasm = { path = "../checklist-handler-wasm/crates/handler-wasm" }
+
+# Internal - from checklist-handler-modularity
+handler-modularity = { path = "../checklist-handler-modularity/crates/handler-modularity" }
+
+# Internal - this component
+cli-args = { path = "crates/cli-args" }
+cli-runner = { path = "crates/cli-runner" }

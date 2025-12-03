@@ -1,0 +1,14 @@
+[package]
+name = "handler-modularity"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+walkdir.workspace = true
+checklist-result.workspace = true
+discovery-crate.workspace = true
+handler-trait.workspace = true
+modularity-loc.workspace = true

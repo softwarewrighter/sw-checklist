@@ -1,0 +1,23 @@
+[package]
+name = "sw-checklist"
+description = "CLI tool for validating Software Wrighter LLC project conformance"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "sw-checklist"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+const_format.workspace = true
+cli-args.workspace = true
+cli-runner.workspace = true
+checklist-config.workspace = true
+
+[build-dependencies]
+chrono.workspace = true
+hostname.workspace = true
