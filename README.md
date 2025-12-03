@@ -8,7 +8,8 @@ CLI tool for validating Software Wrighter LLC project conformance requirements.
 
 ## Features
 
-- **Automatic Project Detection**: Identifies Rust projects and more
+- **Automatic Project Detection**: Identifies Rust projects, CLI tools, Web UI crates, and workspaces
+- **Workspace-Aware**: Correctly handles multi-component projects with workspace Cargo.toml files
 - **Clap CLI Validation**: For Rust projects using clap:
   - Verifies `-h` vs `--help` output (--help should be longer)
   - Checks for AI Coding Agent instructions in `--help`
@@ -20,11 +21,16 @@ CLI tool for validating Software Wrighter LLC project conformance requirements.
     - Build host
     - Build commit SHA
     - Build timestamp
+- **Web UI Validation**: For WASM crates with web-serving indicators (index.html, static/, Trunk.toml):
+  - Checks for index.html and favicon.ico
+  - Validates footer presence and metadata (copyright, license, repository, build info)
+  - Server-side WASM crates without UI indicators skip these checks
 - **Modularity Checks**: For all Rust projects:
   - **Function LOC**: Warns if functions exceed 25 lines, fails if over 50 lines
+  - **File LOC**: Warns if files exceed 350 lines, fails if over 500 lines
   - **Module Function Count**: Warns if modules have >4 functions, fails if >7
   - **Crate Module Count**: Warns if crates have >4 modules, fails if >7
-  - **Project Crate Count**: Warns if projects have >4 crates, fails if >7
+  - **Project Crate Count**: Warns if projects have >4 crates, fails if >7 (excludes workspace Cargo.toml)
 - **Extensible**: Easy to add new checks for different project types
 
 ## Installation
@@ -62,9 +68,14 @@ sw-checklist
 # Check specific project
 sw-checklist /path/to/project
 
-# Verbose output
+# Verbose output (shows crate types and checks being run)
 sw-checklist -v /path/to/project
 ```
+
+Verbose mode shows:
+- Each Cargo.toml being checked with crate name and type (workspace, CLI, WASM, library)
+- Which checks are being run for each crate
+- Workspaces are identified and skip CLI/WASM checks
 
 ### Help
 
@@ -135,6 +146,24 @@ Summary: 6 passed, 0 failed
      - Build Commit: `Build Commit:`
      - Build Time: `Build Time:`
 
+### Web UI Projects (WASM with UI indicators)
+
+A crate is considered a Web UI if it has WASM dependencies AND web-serving indicators:
+- `index.html` file
+- `static/`, `public/`, `dist/`, `assets/`, or `www/` directory
+- `Trunk.toml` file
+
+Checks performed:
+1. **index.html**: Must exist in crate root
+2. **favicon.ico**: Must exist and be referenced in index.html
+3. **Footer Metadata**: Source code should contain:
+   - Copyright notice
+   - License information
+   - Repository link
+   - Build host, commit, and timestamp
+
+Server-side WASM crates (sandboxes, plugins) without these indicators skip UI checks.
+
 ### All Rust Projects (Modularity)
 
 Following the 7±2 rule (Miller's Law) for cognitive limits:
@@ -144,20 +173,26 @@ Following the 7±2 rule (Miller's Law) for cognitive limits:
    - ❌ **Fail**: Functions with >50 lines
    - **Rationale**: Functions should do one thing well
 
-2. **Module Function Count**:
+2. **File Lines of Code (LOC)**:
+   - ⚠️ **Warning**: Files with 351-500 lines
+   - ❌ **Fail**: Files with >500 lines
+   - **Rationale**: Large files indicate need to split into modules
+
+3. **Module Function Count**:
    - ⚠️ **Warning**: Modules with 5-7 functions
    - ❌ **Fail**: Modules with >7 functions
    - **Rationale**: Modules should have a clear, focused purpose
 
-3. **Crate Module Count**:
+4. **Crate Module Count**:
    - ⚠️ **Warning**: Crates with 5-7 modules
    - ❌ **Fail**: Crates with >7 modules
    - **Rationale**: Crates should be cohesive units
 
-4. **Project Crate Count**:
+5. **Project Crate Count**:
    - ⚠️ **Warning**: Projects with 5-7 crates
    - ❌ **Fail**: Projects with >7 crates
    - **Rationale**: Projects should have well-scoped boundaries
+   - **Note**: Workspace Cargo.toml files are not counted as crates
 
 ## Dogfooding
 
