@@ -1,9 +1,9 @@
 # Project Status
 # sw-checklist
 
-**Last Updated**: 2025-11-17
-**Current Version**: 0.1.0
-**Status**: ✅ Feature Complete for v0.1.0
+**Last Updated**: 2025-12-03
+**Current Version**: 0.1.0 → 0.2.0 (in development)
+**Status**: 🚧 Multi-Component Support In Progress
 
 ## Quick Status
 
@@ -12,28 +12,44 @@
 | Core CLI | ✅ Complete | All features implemented |
 | Clap Validation | ✅ Complete | Help, version, metadata checks |
 | WASM Validation | ✅ Complete | HTML, favicon, footer checks |
-| Modularity Checks | ✅ Complete | Function, module, crate, project LOC |
-| Tests | ✅ Passing | 26/26 tests passing |
-| Documentation | ✅ Complete | README, architecture, PRD, design, plan |
+| Modularity Checks | ✅ Complete | Function, module, crate, file LOC |
+| Multi-Component | 🚧 In Progress | New project structure support |
+| Per-Crate Detection | 🚧 In Progress | CLI/WASM checks per crate type |
+| Tests | ✅ Passing | 29/29 tests passing |
+| Documentation | ✅ Updated | Architecture, PRD, design, plan updated |
 | Dogfooding | ⚠️ Partial | Tool validates itself, reveals tech debt |
 | Performance | ✅ Good | <1s for small projects |
 
 ## Current Sprint
 
 ### Sprint Goal
-Implement comprehensive modularity checks for all Rust projects following TDD.
+Add support for multi-component projects and per-crate type detection.
+
+### In Progress
+- 🚧 Multi-component project structure detection
+- 🚧 Per-crate CLI/WASM type detection
+- 🚧 Per-component crate counting (not project-wide)
+- 🚧 Component count warning (>7 components)
 
 ### Completed This Sprint
+- ✅ Updated architecture.md with multi-component support
+- ✅ Updated prd.md with per-crate type detection
+- ✅ Updated design.md with new algorithms
+- ✅ Updated plan.md with Phase 6 implementation plan
+- ✅ Updated status.md (this file)
+
+### Previously Completed
 - ✅ Added Function LOC checks (warn >25, fail >50)
 - ✅ Added Module Function Count checks (warn >4, fail >7)
 - ✅ Added Crate Module Count checks (warn >4, fail >7)
 - ✅ Added Project Crate Count checks (warn >4, fail >7)
+- ✅ Added File LOC checks (warn >350, fail >500)
 - ✅ Updated .gitignore for test_subjects directory
 - ✅ Updated --help text with modularity checks
 - ✅ Updated README.md with modularity documentation
 - ✅ Added AI agent instructions for modularity philosophy
 - ✅ Created comprehensive documentation (PRD, architecture, design, plan, status)
-- ✅ All tests passing (26 tests)
+- ✅ All tests passing (29 tests)
 - ✅ Zero clippy warnings
 - ✅ Code formatted with rustfmt
 
@@ -131,12 +147,24 @@ Implement comprehensive modularity checks for all Rust projects following TDD.
 
 ### 🚧 In Progress
 
-None currently.
+#### Multi-Component Support (v0.2.0)
+- [ ] Detect multi-component project structure
+- [ ] Discover components under components/ directory
+- [ ] Per-crate type detection (CLI vs WASM vs Library)
+- [ ] Per-component crate counting
+- [ ] Component count warnings
 
 ### 📋 Planned (Next Version)
 
-#### Version 0.2.0
-- [ ] File LOC validation (warn >350, fail >500)
+#### Version 0.2.0 (Current Target)
+- [ ] Multi-component project detection
+- [ ] Per-crate CLI/WASM type detection
+- [ ] Per-component crate limits (not project-wide)
+- [ ] Component count warning (>7)
+- [x] File LOC validation (warn >350, fail >500)
+- [ ] Updated README.md
+
+#### Version 0.3.0
 - [ ] Refactoring guidance in error messages
 - [ ] Performance optimizations
 - [ ] Configuration file support (.sw-checklist.toml)
@@ -144,8 +172,8 @@ None currently.
 ## Test Coverage
 
 ### Test Statistics
-- **Total Tests**: 26
-- **Passing**: 26 (100%)
+- **Total Tests**: 29
+- **Passing**: 29 (100%)
 - **Failing**: 0 (0%)
 - **Ignored**: 0
 
@@ -161,6 +189,14 @@ None currently.
 | Module function count | 3 | ✅ Passing |
 | Crate module count | 2 | ✅ Passing |
 | Workspace/multi-crate | 2 | ✅ Passing |
+| File LOC | 3 | ✅ Passing |
+
+### Pending Tests (v0.2.0)
+| Feature | Test Count | Status |
+|---------|-----------|--------|
+| Multi-component detection | 0 | 📋 Planned |
+| Per-crate type detection | 0 | 📋 Planned |
+| Component crate counting | 0 | 📋 Planned |
 
 ### Test Execution Time
 - Average: ~0.02s
@@ -221,12 +257,27 @@ Running sw-checklist on itself reveals:
 1. **Long functions in main.rs**: Tool reports its own code quality issues
    - Status: Expected (dogfooding working)
    - Priority: Medium
-   - Plan: Refactor in 0.2.0
+   - Plan: Refactor after v0.2.0
 
 2. **Test functions trigger LOC warnings**: Tests counted in modularity metrics
    - Status: By design
    - Priority: Low
    - Plan: Could add --exclude-tests flag in future
+
+3. **Erroneous "too many crates" errors**: Crate count applied project-wide instead of per-component
+   - Status: 🔧 Being fixed in v0.2.0
+   - Priority: High
+   - Plan: Per-component crate counting
+
+4. **CLI checks run on library crates**: False positives for non-CLI crates
+   - Status: 🔧 Being fixed in v0.2.0
+   - Priority: High
+   - Plan: Per-crate type detection
+
+5. **WASM checks run on non-WASM crates**: False positives in multi-type projects
+   - Status: 🔧 Being fixed in v0.2.0
+   - Priority: High
+   - Plan: Per-crate type detection
 
 ### Limitations
 1. **Line-based parsing**: May miscount in edge cases (strings with braces)
@@ -235,11 +286,15 @@ Running sw-checklist on itself reveals:
 
 2. **No configuration**: Thresholds are hard-coded
    - Impact: One-size-fits-all approach
-   - Mitigation: Planned for 0.2.0 with config file support
+   - Mitigation: Planned for 0.3.0 with config file support
 
 3. **Sequential processing**: Checks run sequentially per crate
    - Impact: Slower on large projects
    - Mitigation: Could parallelize in future
+
+4. **Old-style project assumption**: Currently assumes all projects have root Cargo.toml
+   - Impact: Multi-component projects get wrong crate counts
+   - Status: 🔧 Being fixed in v0.2.0
 
 ## Dependencies
 
@@ -291,24 +346,29 @@ Running sw-checklist on itself reveals:
 
 ## Next Milestones
 
-### Version 0.2.0 (Planned)
-**Target**: 2025-12-01
-**Focus**: File size validation and configuration
+### Version 0.2.0 (Current - In Progress)
+**Target**: 2025-12
+**Focus**: Multi-component support and per-crate detection
 
 **Planned Features**:
-- File LOC validation (warn >350, fail >500)
-- Configuration file support (.sw-checklist.toml)
-- Refactoring guidance in error messages
-- Performance optimizations
+- [x] File LOC validation (warn >350, fail >500)
+- [x] Documentation updates (architecture, PRD, design, plan, status)
+- [ ] Multi-component project detection
+- [ ] Per-crate type detection (CLI vs WASM vs Library)
+- [ ] Per-component crate counting
+- [ ] Component count warnings
+- [ ] Updated README.md
 
 ### Version 0.3.0 (Planned)
 **Target**: 2025-Q1
-**Focus**: Test and documentation validation
+**Focus**: Configuration and test validation
 
 **Planned Features**:
+- Configuration file support (.sw-checklist.toml)
 - Test coverage validation
 - Documentation completeness checks
-- Dependency update warnings
+- Refactoring guidance in error messages
+- Performance optimizations
 
 ### Version 1.0.0 (Planned)
 **Target**: 2025-Q2
@@ -366,14 +426,16 @@ Running sw-checklist on itself reveals:
 - Modularity checks implemented in single sprint
 - Line-based parsing is sufficient for current needs
 - Documentation created retroactively but comprehensive
+- Multi-component support requires significant discovery logic changes
+- Per-crate type detection is key to avoiding false positives
 
 ### Future Considerations
 - Consider parallel crate processing for large projects
 - May need configuration for projects with legitimate exceptions
-- File LOC check is high priority for next version
 - Plugin system would enable custom checks per organization
+- Multi-component support enables larger, more complex projects
 
 ---
 
-**Last reviewed**: 2025-11-17
-**Next review**: 2025-12-01
+**Last reviewed**: 2025-12-03
+**Next review**: 2025-12-15

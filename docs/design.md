@@ -1,8 +1,8 @@
 # Design Document
 # sw-checklist
 
-**Version**: 0.1.0
-**Date**: 2025-11-17
+**Version**: 0.2.0
+**Date**: 2025-12-03
 **Status**: Active
 
 ## Design Philosophy
@@ -14,6 +14,8 @@
 3. **Progressive Enhancement**: Warnings before failures; allow gradual improvement
 4. **Zero Configuration**: Sensible defaults; configuration optional
 5. **Self-Validation**: Tool must pass its own checks (dogfooding)
+6. **Per-Crate Type Detection**: Check types are determined per-crate, not per-project
+7. **Multi-Component Awareness**: Support both old-style and new-style project structures
 
 ### Design Influences
 
@@ -199,6 +201,70 @@ fn find_cargo_tomls(path: &Path) -> Vec<PathBuf> {
 
 **Lessons Learned**: See docs/learnings.md - Project Structure Assumptions
 
+### Decision 8: Multi-Component Project Support
+
+**Decision**: Support new-style repositories with components/ directory structure
+
+**Rationale**:
+- New projects use independent component workspaces
+- Each component can have different crate types (CLI, WASM, Library)
+- Crate limits should apply per-component, not project-wide
+- Allows scaling to larger projects without hitting arbitrary limits
+
+**Detection Algorithm**:
+```rust
+fn is_multi_component_project(path: &Path) -> bool {
+    let components_dir = path.join("components");
+    let root_cargo = path.join("Cargo.toml");
+
+    // Multi-component: has components/ but no root Cargo.toml
+    components_dir.exists() && !root_cargo.exists()
+}
+```
+
+**Crate Counting Strategy**:
+- Old-style: Count all Cargo.toml files project-wide
+- Multi-component: Count Cargo.toml files per component
+- Each component gets its own 7-crate limit
+- Warn if more than 7 components (but don't fail)
+
+**Trade-offs**:
+- More complex discovery logic
+- Need to handle both styles correctly
+- Benefits large-scale projects significantly
+
+### Decision 9: Per-Crate Type Detection
+
+**Decision**: Determine crate type (CLI, WASM, Library) individually for each crate
+
+**Rationale**:
+- A project may contain multiple crate types
+- CLI checks should only run on CLI crates
+- WASM checks should only run on WASM crates
+- Previous approach checked project-wide types, causing false positives
+
+**Detection Criteria**:
+```rust
+// CLI crate detection
+fn is_cli_crate(cargo_toml: &str) -> bool {
+    cargo_toml.contains("clap") ||
+    cargo_toml.contains("[[bin]]")
+}
+
+// WASM crate detection
+fn is_wasm_crate(cargo_toml: &str) -> bool {
+    cargo_toml.contains("wasm-bindgen") ||
+    cargo_toml.contains("yew") ||
+    cargo_toml.contains("crate-type = [\"cdylib\"]")
+}
+```
+
+**Benefits**:
+- No more CLI checks on library crates
+- No more WASM checks on pure libraries
+- Correct behavior in multi-component projects
+- Each crate gets exactly the checks it needs
+
 ## Data Structures
 
 ### CheckResult
@@ -329,7 +395,7 @@ function check_modularity(crate_dir, crate_name):
 
 **Problem**: Run appropriate checks for each crate type
 
-**Approach**: Type detection with conditional check dispatch
+**Approach**: Per-crate type detection with conditional check dispatch
 
 **Algorithm**:
 ```
@@ -340,12 +406,17 @@ function run_checks(project_root, cargo_tomls, verbose):
         crate_dir = parent_dir(cargo_toml)
         cargo_data = parse_toml(cargo_toml)
         crate_name = cargo_data.package.name
+        cargo_content = read_file(cargo_toml)
 
-        # Type-specific checks
-        if has_dependency("clap"):
+        # Per-crate type detection
+        is_cli = is_cli_crate(cargo_content)      # has clap dependency
+        is_wasm = is_wasm_crate(cargo_content)    # has wasm-bindgen/yew
+
+        # Type-specific checks - only if this crate matches
+        if is_cli:
             results.extend(check_rust_crate(crate_dir))
 
-        if has_dependency("wasm-bindgen") or has_dependency("yew"):
+        if is_wasm:
             results.extend(check_wasm_crate(crate_dir))
 
         # Universal checks (all Rust crates)
@@ -355,9 +426,82 @@ function run_checks(project_root, cargo_tomls, verbose):
 ```
 
 **Design Rationale**:
+- Per-crate detection prevents false positives
 - Checks are independent (can run in any order)
 - Type detection is inclusive (crate can be both CLI and WASM)
 - Modularity checks always run (universal requirement)
+- Library crates only get modularity checks
+
+### Multi-Component Discovery Algorithm
+
+**Problem**: Identify project structure and group crates by component
+
+**Approach**: Check for components/ directory pattern
+
+**Algorithm**:
+```
+function discover_project_structure(project_root):
+    components_dir = project_root / "components"
+    root_cargo = project_root / "Cargo.toml"
+
+    if components_dir.exists() and not root_cargo.exists():
+        # Multi-component project
+        structure = MultiComponent
+        components = []
+
+        for dir in list_directories(components_dir):
+            if (dir / "Cargo.toml").exists():
+                component = Component {
+                    name: dir.name,
+                    root: dir,
+                    crates: find_cargo_tomls(dir)
+                }
+                components.push(component)
+
+        return (structure, components)
+    else:
+        # Old-style project
+        structure = OldStyle
+        crates = find_cargo_tomls(project_root)
+        return (structure, crates)
+```
+
+### Crate Count Validation Algorithm
+
+**Problem**: Apply 7-crate limit appropriately based on project structure
+
+**Algorithm**:
+```
+function check_crate_counts(project_root, structure):
+    results = []
+
+    if structure == MultiComponent:
+        # Per-component limits
+        for component in components:
+            crate_count = component.crates.len() - 1  # exclude workspace Cargo.toml
+            if crate_count > 7:
+                results.push(FAIL: component has too many crates)
+            elif crate_count > 4:
+                results.push(WARN: component approaching crate limit)
+            else:
+                results.push(PASS)
+
+        # Component count warning (no hard limit)
+        if components.len() > 7:
+            results.push(WARN: many components, consider grouping)
+
+    else:
+        # Old-style: project-wide limit
+        crate_count = all_crates.len()
+        if crate_count > 7:
+            results.push(FAIL: project has too many crates)
+        elif crate_count > 4:
+            results.push(WARN: project approaching crate limit)
+        else:
+            results.push(PASS)
+
+    return results
+```
 
 ## Output Design
 
@@ -747,3 +891,4 @@ sw-checklist --format json > results.json
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1.0 | 2025-11-17 | Claude Code | Initial design document |
+| 0.2.0 | 2025-12-03 | Claude Code | Added multi-component support, per-crate type detection |

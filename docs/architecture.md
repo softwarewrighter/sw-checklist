@@ -1,13 +1,18 @@
 # Architecture Document
 # sw-checklist
 
-**Version**: 0.1.0
-**Date**: 2025-11-17
+**Version**: 0.2.0
+**Date**: 2025-12-03
 **Status**: Active
 
 ## Overview
 
 sw-checklist is a single-binary CLI tool written in Rust that validates project conformance to Software Wrighter LLC standards. It uses a modular, check-based architecture that is easily extensible for new validation types.
+
+The tool supports three repository structures:
+1. **Single-crate**: Traditional single Cargo.toml at root
+2. **Workspace**: Root Cargo.toml with `[workspace]` section and member crates
+3. **Multi-component**: No root Cargo.toml, multiple independent component workspaces under `components/`
 
 ## System Architecture
 
@@ -25,10 +30,19 @@ sw-checklist is a single-binary CLI tool written in Rust that validates project 
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │              main() - Entry Point                   │   │
 │  │  - Parse CLI args (clap)                            │   │
-│  │  - Find Cargo.toml files                            │   │
-│  │  - Detect project type                              │   │
-│  │  - Run checks                                       │   │
+│  │  - Discover project structure                       │   │
+│  │  - Detect components (if multi-component)           │   │
+│  │  - Run checks per component/crate                   │   │
 │  │  - Print results                                    │   │
+│  └──────────────────┬──────────────────────────────────┘   │
+│                     │                                       │
+│                     ▼                                       │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │          Project Structure Discovery                │   │
+│  │                                                      │   │
+│  │  - Detect old-style vs new-style (multi-component)  │   │
+│  │  - Find component-level workspace Cargo.toml files  │   │
+│  │  - Group crates by component for limit checks       │   │
 │  └──────────────────┬──────────────────────────────────┘   │
 │                     │                                       │
 │                     ▼                                       │
@@ -36,25 +50,29 @@ sw-checklist is a single-binary CLI tool written in Rust that validates project 
 │  │          Check Orchestration Layer                  │   │
 │  │                                                      │   │
 │  │  run_checks() - Iterate crates and dispatch         │   │
+│  │  - Type detection per crate (CLI, WASM, Library)    │   │
+│  │  - Conditional check dispatch                       │   │
 │  └──────┬──────────────────────────────────┬───────────┘   │
 │         │                                   │               │
 │         ▼                                   ▼               │
 │  ┌──────────────┐                   ┌──────────────┐       │
 │  │ Clap Checks  │                   │  Modularity  │       │
-│  │              │                   │    Checks    │       │
-│  │ - Help flags │                   │              │       │
-│  │ - Version    │                   │ - Fn LOC     │       │
-│  │ - Metadata   │                   │ - Module fns │       │
-│  │ - Binaries   │                   │ - Crate mods │       │
-│  └──────────────┘                   └──────────────┘       │
-│                                                             │
+│  │ (CLI only)   │                   │    Checks    │       │
+│  │              │                   │              │       │
+│  │ - Help flags │                   │ - Fn LOC     │       │
+│  │ - Version    │                   │ - Module fns │       │
+│  │ - Metadata   │                   │ - Crate mods │       │
+│  │ - Binaries   │                   │ - Component  │       │
+│  └──────────────┘                   │   crate cnt  │       │
+│                                     └──────────────┘       │
 │         ▼                                   ▼               │
 │  ┌──────────────┐                   ┌──────────────┐       │
 │  │ WASM Checks  │                   │ Misc Checks  │       │
-│  │              │                   │              │       │
-│  │ - HTML files │                   │ - sw-install │       │
-│  │ - Favicon    │                   │ - Freshness  │       │
-│  │ - Footer     │                   │              │       │
+│  │ (WASM only)  │                   │              │       │
+│  │              │                   │ - sw-install │       │
+│  │ - HTML files │                   │ - Freshness  │       │
+│  │ - Favicon    │                   │ - Component  │       │
+│  │ - Footer     │                   │   count warn │       │
 │  └──────────────┘                   └──────────────┘       │
 │                                                             │
 │         │                                   │               │
@@ -68,6 +86,90 @@ sw-checklist is a single-binary CLI tool written in Rust that validates project 
 │  │  - Exit with appropriate code                       │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
+```
+
+## Repository Structure Detection
+
+### Old-Style Repositories
+
+Traditional repositories have a Cargo.toml at the root level:
+
+```
+project/
+├── Cargo.toml           # Root (workspace or single-crate)
+├── src/
+│   └── main.rs          # For single-crate
+└── crates/              # Optional: workspace members
+    ├── crate1/
+    │   └── Cargo.toml
+    └── crate2/
+        └── Cargo.toml
+```
+
+### New-Style Multi-Component Repositories
+
+New-style repositories have no root Cargo.toml. Instead, each component under `components/` is an independent workspace:
+
+```
+project/
+├── components/
+│   ├── component-a/           # First component workspace
+│   │   ├── Cargo.toml         # Workspace Cargo.toml
+│   │   ├── crate1/
+│   │   │   └── Cargo.toml
+│   │   └── crate2/
+│   │       └── Cargo.toml
+│   ├── component-b/           # Second component workspace
+│   │   ├── Cargo.toml
+│   │   └── crate1/
+│   │       └── Cargo.toml
+│   └── component-c/           # Third component workspace
+│       ├── Cargo.toml
+│       └── crate1/
+│           └── Cargo.toml
+└── docs/
+```
+
+### Detection Algorithm
+
+```
+1. Check for components/ directory at project root
+2. If components/ exists AND no root Cargo.toml:
+   - Treat as multi-component project
+   - Each direct child of components/ is a component
+   - Each component has its own workspace Cargo.toml
+3. Else:
+   - Treat as old-style project
+   - Root Cargo.toml (or workspace root) defines project scope
+```
+
+## Crate Type Detection
+
+Each crate is classified based on its Cargo.toml contents:
+
+| Type | Detection Criteria | Checks Applied |
+|------|-------------------|----------------|
+| CLI | Has `clap` dependency | Help, version, metadata, binary freshness |
+| WASM/Web UI | Has `wasm-bindgen`, `yew`, or `crate-type = ["cdylib"]` | HTML, favicon, footer |
+| Library | No CLI/WASM markers | Modularity only |
+| CLI + WASM | Both CLI and WASM markers | All checks |
+
+### Binary vs Library Crate Detection
+
+```
+CLI Binary Crate:
+  - Has [[bin]] section in Cargo.toml, OR
+  - Has src/main.rs file, OR
+  - Has clap dependency
+
+WASM UI Crate:
+  - Has crate-type = ["cdylib", "rlib"] in [lib], OR
+  - Has Trunk.toml file, OR
+  - Has wasm-bindgen/yew dependencies
+
+Library Crate:
+  - Has [lib] section without cdylib, OR
+  - Has only src/lib.rs (no main.rs)
 ```
 
 ## Component Design
@@ -87,38 +189,47 @@ sw-checklist is a single-binary CLI tool written in Rust that validates project 
 - Default to current directory
 - Long help includes AI coding agent instructions
 
-**Code Location**: `src/main.rs:18-50`
+**Code Location**: `src/main.rs`
 
 #### 2. Project Discovery
 
 **Responsibilities**:
 - Find all Cargo.toml files in project tree
-- Detect project type (CLI, WASM, Library)
+- Detect project structure (old-style vs multi-component)
+- Identify component boundaries in multi-component projects
+- Detect crate type (CLI, WASM, Library)
 - Handle workspace and multi-crate projects
 
 **Key Functions**:
 - `find_cargo_tomls(path)`: Recursively find all Cargo.toml files
+- `is_multi_component_project(path)`: Detect new-style project structure
+- `discover_components(path)`: Find component workspaces in components/
+- `is_wasm_crate(cargo_toml)`: Check for WASM markers
+- `is_cli_crate(cargo_toml)`: Check for CLI markers (clap, [[bin]])
 - Uses walkdir for efficient traversal
 - Returns paths to all discovered crate manifests
 
-**Code Location**: `src/main.rs:197-206`
+**Code Location**: `src/discovery.rs`
 
 #### 3. Check Orchestration
 
 **Responsibilities**:
 - Iterate over all discovered crates
-- Dispatch appropriate checks based on project type
+- Dispatch appropriate checks based on crate type (not project type)
 - Aggregate results from all checks
+- Apply crate count limits per-component for multi-component projects
 
 **Key Functions**:
 - `run_checks(project_root, cargo_tomls, verbose)`: Main orchestration
   - Parses each Cargo.toml
-  - Determines crate type (clap/wasm/library)
-  - Runs type-specific checks
+  - Determines crate type (clap/wasm/library) individually
+  - Runs type-specific checks only on matching crates:
+    - CLI checks only on crates with clap dependency
+    - WASM checks only on crates with wasm-bindgen/yew
   - Runs modularity checks on all crates
   - Returns aggregated results
 
-**Code Location**: `src/main.rs:208-257`
+**Code Location**: `src/main.rs`
 
 #### 4. Check Result Model
 
@@ -194,7 +305,8 @@ struct CheckResult {
 1. **Function LOC**: Count lines per function (warn >25, fail >50)
 2. **Module Function Count**: Count functions per file (warn >4, fail >7)
 3. **Crate Module Count**: Count .rs files per crate (warn >4, fail >7)
-4. **Project Crate Count**: Count crates in project (warn >4, fail >7)
+4. **Component Crate Count**: Count crates per component (warn >4, fail >7)
+5. **Component Count Warning**: Warn if project has >7 components
 
 **Algorithm**:
 ```
@@ -209,11 +321,20 @@ For each .rs file in src/:
     Check function count against thresholds
 Count total modules (files) in crate
 Check module count against thresholds
+
+For multi-component projects:
+    Group crates by component
+    For each component:
+        Count crates in that component
+        Apply crate count limits (warn >4, fail >7)
+    Count total components
+    Warn if >7 components (no failure, just warning)
 ```
 
 **Key Functions**:
 - `check_modularity()`: Main entry point
 - `extract_function_name()`: Parse function name from signature
+- `check_component_crate_counts()`: Validate crate limits per component
 - Uses simple brace counting (not full AST parsing)
 
 **Design Decisions**:
@@ -221,8 +342,10 @@ Check module count against thresholds
 - Could use syn for full AST parsing in future
 - Counts all functions including tests (intentional)
 - Warnings before failures (progressive feedback)
+- Crate limits are per-component, not project-wide in multi-component repos
+- No hard limit on component count (warn at >7 only)
 
-**Code Location**: `src/main.rs:1013-1184`
+**Code Location**: `src/checks/modularity.rs`
 
 #### Test Validation
 
@@ -257,29 +380,57 @@ Check module count against thresholds
 1. Parse CLI arguments
    └─> Extract project_path and verbose flag
 
-2. Find all Cargo.toml files
+2. Detect project structure
+   └─> Check for components/ directory
+   └─> Check for root Cargo.toml
+   └─> Determine: old-style vs multi-component
+
+3. Find all Cargo.toml files
    └─> Recursively walk directory tree
    └─> Collect all manifest paths
-
-3. Detect project type
-   └─> Scan all Cargo.toml files for dependencies
-   └─> Determine: CLI, WASM, Yew, or Library
+   └─> For multi-component: group by component
 
 4. For each crate:
    a. Parse Cargo.toml
    b. Extract crate name
-   c. If has clap: run clap checks
-   d. If has wasm: run wasm checks
-   e. Always: run modularity checks
+   c. Detect crate type (CLI, WASM, Library)
+   d. If has clap (CLI crate): run clap checks
+   e. If has wasm-bindgen/yew (WASM crate): run wasm checks
+   f. Always: run modularity checks
 
 5. Add project-level checks
    └─> sw-install presence
-   └─> Project crate count
+   └─> For old-style: project crate count
+   └─> For multi-component:
+       └─> Per-component crate counts
+       └─> Component count warning (if >7)
 
 6. Aggregate results
    └─> Count passes, failures, warnings
    └─> Format output
    └─> Exit with code (0 = pass, 1 = failures)
+```
+
+### Multi-Component Project Flow
+
+```
+1. Detect multi-component structure
+   └─> components/ exists AND no root Cargo.toml
+
+2. Discover components
+   └─> List directories in components/
+   └─> Each with Cargo.toml is a component
+
+3. For each component:
+   a. Find crates (Cargo.toml files) within component
+   b. Identify component's workspace root
+   c. Run crate-type-specific checks on each crate
+   d. Count crates in this component
+   e. Apply per-component crate limits (warn >4, fail >7)
+
+4. Project-level component count
+   └─> Count total components
+   └─> Warn if >7 components (no hard failure)
 ```
 
 ### Check Result Aggregation

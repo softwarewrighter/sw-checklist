@@ -34,95 +34,107 @@ This document outlines the development roadmap for sw-checklist, a CLI tool for 
 - [x] Project crate count (warn >4, fail >7)
 - [x] Support for all Rust projects (not just clap/WASM)
 
+### Phase 5: File Size Validation
+- [x] File LOC validation (warn >350, fail >500)
+
 ## Next Steps
 
-### Phase 5: File Size Validation
+### Phase 6: Multi-Component Project Support
 
-**Objective**: Prevent monolithic files by enforcing file size limits.
+**Objective**: Support new-style repositories with multiple independent component workspaces.
 
 **Rationale**:
-Even if individual functions are appropriately sized, a file can become unwieldy when it contains too many structs, implementations, or modules. Large files are harder to navigate, understand, and maintain. They often indicate that code should be better organized into separate files.
+Modern projects may organize code into multiple independent components under a `components/` directory. Each component is a separate workspace with its own Cargo.toml. This structure allows:
+- Independent versioning per component
+- Clear separation of concerns (spec, cli, web)
+- Scalability beyond the 7-crate limit
 
-**Check Specification**:
-- **File LOC Limits**:
-  - ⚠️ **Warning**: Files with 351-500 lines
-  - ❌ **Fail**: Files with >500 lines
-  - ✓ **Pass**: Files with ≤350 lines
+**Requirements**:
 
-**Refactoring Guidance** (to be included in check messages):
+1. **Project Structure Detection**:
+   - [ ] Detect multi-component projects (components/ dir, no root Cargo.toml)
+   - [ ] Detect old-style projects (root Cargo.toml)
+   - [ ] Support both structures in same tool
 
-When a file exceeds limits, consider these refactoring strategies in order:
+2. **Component Discovery**:
+   - [ ] Find component directories under components/
+   - [ ] Identify component workspace Cargo.toml files
+   - [ ] Group crates by component for validation
 
-1. **Extract Modules**: Move related functionality to separate module files
-   - Example: Split `user.rs` into `user/mod.rs`, `user/auth.rs`, `user/profile.rs`
+3. **Per-Crate Type Detection**:
+   - [ ] Detect CLI crates (clap dependency, [[bin]] section)
+   - [ ] Detect WASM crates (wasm-bindgen, yew, cdylib)
+   - [ ] Only run CLI checks on CLI crates
+   - [ ] Only run WASM checks on WASM crates
 
-2. **Separate Structs and Implementations**:
-   - Move large struct definitions and their implementations to dedicated files
-   - Example: `database.rs` → `database/connection.rs`, `database/query_builder.rs`
+4. **Component-Level Crate Counting**:
+   - [ ] Apply 7-crate limit per component (not project-wide)
+   - [ ] Warn at >4 crates per component
+   - [ ] Fail at >7 crates per component
+   - [ ] Warn (don't fail) if >7 components in project
 
-3. **Use Traits for Organization**:
-   - Define traits in one file, implementations in others
-   - Example: `traits/repository.rs`, `repository/user_repo.rs`, `repository/post_repo.rs`
-
-4. **Apply Composition Over Inheritance**:
-   - Break large structs into smaller, composable pieces
-   - Create focused types that can be combined
-   - Example: Large `Config` struct → `DatabaseConfig`, `ServerConfig`, `LoggingConfig`
-
-5. **Module Hierarchy**:
-   - Use subdirectories for related files
-   - Create `mod.rs` to re-export public API
-   - Keep implementation details in separate files
+5. **Testing**:
+   - [ ] Test multi-component project detection
+   - [ ] Test crate type detection accuracy
+   - [ ] Test per-component crate counting
+   - [ ] Test against alltalk-client-rs as reference
 
 **Implementation Plan**:
 
-1. **TDD Approach** (following existing patterns):
-   - Write tests for files under 350 LOC (pass)
-   - Write tests for files with 351-500 LOC (warning)
-   - Write tests for files with >500 LOC (fail)
-   - Test should create temporary files with known line counts
+1. **TDD Approach**:
+   - Write tests for multi-component detection
+   - Write tests for per-crate type detection
+   - Write tests for component crate counting
 
-2. **Implementation**:
-   - Extend `check_modularity()` function to count file lines
-   - Track file LOC alongside existing metrics
-   - Add file-level results to modularity check output
-   - Provide actionable error messages with refactoring suggestions
+2. **Discovery Module Updates** (`src/discovery.rs`):
+   - Add `is_multi_component_project()` function
+   - Add `discover_components()` function
+   - Add `is_cli_crate()` function
+   - Update `is_wasm_crate()` to be more robust
 
-3. **Integration**:
-   - Add to existing modularity check flow
-   - Update summary to include file LOC statistics
-   - Ensure check runs on all `.rs` files in `src/`
+3. **Main Module Updates** (`src/main.rs`):
+   - Update project structure detection
+   - Conditionally run CLI checks only on CLI crates
+   - Conditionally run WASM checks only on WASM crates
+   - Update crate counting to be per-component
 
 4. **Documentation**:
-   - Update README.md with file LOC check description
-   - Update --help text with file size limits
-   - Add refactoring examples to AI agent instructions
-   - Document in learnings.md if patterns emerge
+   - Update README.md with multi-component support
+   - Update --help text
+   - Update architecture, design, PRD docs
 
-5. **Testing**:
-   - Test with files of various sizes
-   - Test with actual monolithic files
-   - Verify refactoring suggestions are helpful
-   - Ensure no false positives on legitimately large files
+**Expected Output for Multi-Component Project**:
 
-**Expected Output Example**:
 ```
-✗ FAIL | File LOC [my-crate]
-       File main.rs has 687 lines (max 500)
-       Consider: Extract modules, separate structs/impls, or use traits
+Checking project: /path/to/project
+Project type: Multi-Component (3 components)
 
-⚠ WARN | File LOC [my-crate]
-       File utils.rs has 423 lines (warning at >350, max 500)
-       Consider: Extract related functionality to separate files
+Components:
+  - tts-spec (3 crates): Library
+  - tts-cli (1 crate): CLI
+  - tts-web (2 crates): CLI + WASM
+
+Check Results:
+================================================================================
+✓ PASS | Component Crate Count [tts-spec]
+       Component has 3 crates (4 or fewer)
+
+✓ PASS | Component Crate Count [tts-cli]
+       Component has 1 crate (4 or fewer)
+
+✓ PASS | Component Crate Count [tts-web]
+       Component has 2 crates (4 or fewer)
+
+✓ PASS | Clap Dependency [ttsctl]
+       Found clap dependency in ttsctl
+
+✓ PASS | WASM Dependency [tts-web-ui]
+       Found WASM dependencies in tts-web-ui
+
+Summary: 25 passed, 0 failed, 2 warnings
 ```
 
-**Future Enhancements**:
-- Exclude test modules from LOC counts (optional)
-- Configurable limits per-project via `.sw-checklist.toml`
-- Automatic refactoring suggestions based on code analysis
-- Integration with IDEs for real-time feedback
-
-### Phase 6: Additional Future Features
+### Phase 7: Additional Future Features
 
 **Test Coverage Validation**:
 - Check for presence of tests
@@ -162,10 +174,11 @@ When a file exceeds limits, consider these refactoring strategies in order:
 ## Release Strategy
 
 ### Version 0.2.0 (Next Release)
-- File LOC validation
+- Multi-component project support
+- Per-crate type detection
+- Per-component crate counting
 - Updated documentation
-- Performance improvements
-- Bug fixes from user feedback
+- Bug fixes for erroneous "too many crates" errors
 
 ### Version 0.3.0
 - Test coverage validation

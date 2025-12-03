@@ -218,10 +218,6 @@ fn run_checks(
     let mut results = Vec::new();
 
     for cargo_toml_path in cargo_tomls {
-        if verbose {
-            println!("Checking: {}", cargo_toml_path.display());
-        }
-
         let cargo_toml = fs::read_to_string(cargo_toml_path)
             .with_context(|| format!("Failed to read Cargo.toml at {:?}", cargo_toml_path))?;
 
@@ -234,12 +230,46 @@ fn run_checks(
             .and_then(|n| n.as_str())
             .unwrap_or("unknown");
 
-        let has_clap = cargo_toml.contains("clap");
+        let is_workspace = discovery::is_workspace(&cargo_toml);
+        let has_clap = discovery::has_clap_dependency(&cargo_toml);
         let is_wasm = discovery::is_wasm_crate(&cargo_toml);
+
+        // Determine crate type for verbose output
+        let crate_type = if is_workspace {
+            "workspace"
+        } else if has_clap && is_wasm {
+            "CLI + WASM"
+        } else if has_clap {
+            "CLI (clap)"
+        } else if is_wasm {
+            "WASM"
+        } else {
+            "library"
+        };
+
+        if verbose {
+            println!(
+                "Checking: {} [{}] ({})",
+                cargo_toml_path.display(),
+                crate_name,
+                crate_type
+            );
+        }
+
+        // Skip workspace Cargo.toml for clap/wasm checks (they're just containers)
+        if is_workspace {
+            if verbose {
+                println!("  Skipping clap/wasm checks for workspace");
+            }
+            continue;
+        }
 
         // Check crates that use clap or are WASM projects
         if has_clap {
             let crate_dir = cargo_toml_path.parent().unwrap();
+            if verbose {
+                println!("  Running CLI (clap) checks for {}", crate_name);
+            }
             results.extend(checks::clap::check_rust_crate(
                 project_root,
                 crate_dir,
@@ -247,6 +277,9 @@ fn run_checks(
             )?);
         } else if is_wasm {
             let crate_dir = cargo_toml_path.parent().unwrap();
+            if verbose {
+                println!("  Running WASM checks for {}", crate_name);
+            }
             results.extend(checks::wasm::check_wasm_crate(
                 project_root,
                 crate_dir,
@@ -254,8 +287,11 @@ fn run_checks(
             )?);
         }
 
-        // Run modularity checks on all crates
+        // Run modularity checks on all crates (not workspaces)
         let crate_dir = cargo_toml_path.parent().unwrap();
+        if verbose {
+            println!("  Running modularity checks for {}", crate_name);
+        }
         results.extend(checks::modularity::check_modularity(crate_dir, crate_name)?);
     }
 

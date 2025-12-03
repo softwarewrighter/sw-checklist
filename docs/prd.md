@@ -1,14 +1,14 @@
 # Product Requirements Document (PRD)
 # sw-checklist
 
-**Version**: 0.1.0
-**Date**: 2025-11-17
+**Version**: 0.2.0
+**Date**: 2025-12-03
 **Status**: Active Development
 **Owner**: Software Wrighter LLC
 
 ## Executive Summary
 
-sw-checklist is a CLI tool that validates Rust projects against Software Wrighter LLC standards and best practices. It automatically detects project types and runs appropriate validation checks, providing clear, actionable feedback to developers and AI coding agents.
+sw-checklist is a CLI tool that validates Rust projects against Software Wrighter LLC standards and best practices. It automatically detects project types and crate types, running appropriate validation checks based on what each crate actually contains. It supports both traditional single-workspace repositories and new-style multi-component repositories.
 
 ## Problem Statement
 
@@ -19,6 +19,8 @@ sw-checklist is a CLI tool that validates Rust projects against Software Wrighte
 3. **Missing Metadata**: CLI tools lack proper version information, help text, and build metadata
 4. **Manual Validation**: No automated way to verify project conformance
 5. **AI Agent Guidance**: AI coding agents need clear, programmatic standards to follow
+6. **Multi-Component Projects**: New project structures with multiple independent components need proper support
+7. **Over-enforcement**: CLI checks were running on library crates, WASM checks on non-WASM crates
 
 ### Target Users
 
@@ -45,31 +47,51 @@ sw-checklist is a CLI tool that validates Rust projects against Software Wrighte
 
 ## Features and Requirements
 
-### Feature 1: Project Type Detection
+### Feature 1: Project and Crate Type Detection
 
 **Priority**: P0 (Must Have)
 
-**Description**: Automatically detect project type from files and dependencies.
+**Description**: Automatically detect project structure and individual crate types from files and dependencies.
 
 **Requirements**:
+
+**Project Structure Detection**:
 - Detect Rust projects via Cargo.toml presence
-- Identify CLI projects via clap dependency
-- Identify WASM projects via wasm-bindgen/yew dependencies
-- Support workspace and multi-crate projects
+- Support three repository structures:
+  1. Single-crate: Root Cargo.toml with package section
+  2. Workspace: Root Cargo.toml with [workspace] section
+  3. Multi-component: No root Cargo.toml, components/ directory with independent workspaces
 - Handle nested crate structures
+
+**Crate Type Detection** (per crate):
+- Identify CLI crates via clap dependency or [[bin]] section
+- Identify WASM/Web UI crates via:
+  - wasm-bindgen dependency
+  - yew dependency
+  - `crate-type = ["cdylib"]` in [lib] section
+  - Trunk.toml presence
+- Identify library crates (no CLI/WASM markers)
 
 **Acceptance Criteria**:
 - Correctly identifies single-crate projects
 - Correctly identifies workspace projects
-- Correctly identifies multi-crate projects
+- Correctly identifies multi-component projects
+- Correctly classifies each crate type (CLI, WASM, Library) independently
 - Reports accurate count of Cargo.toml files
-- Displays detected project type to user
+- Displays detected project structure to user
+- Only runs CLI checks on CLI crates
+- Only runs WASM checks on WASM crates
 
 ### Feature 2: Clap CLI Validation
 
 **Priority**: P0 (Must Have)
 
-**Description**: Validate CLI tools built with clap for proper help and version output.
+**Description**: Validate CLI tools built with clap for proper help and version output. **Only applies to crates that have the clap dependency**.
+
+**Applicability**:
+- Only runs on crates with `clap` in dependencies
+- Does NOT run on library crates or WASM-only crates
+- A multi-component project may have CLI crates in some components and not others
 
 **Requirements**:
 
@@ -95,6 +117,7 @@ sw-checklist is a CLI tool that validates Rust projects against Software Wrighte
 - Clear error messages when requirements not met
 - Validates all binaries in multi-binary crates
 - Works with debug and release builds
+- Does NOT run on non-CLI crates (library, WASM-only)
 
 ### Feature 3: Modularity Validation
 
@@ -122,16 +145,28 @@ sw-checklist is a CLI tool that validates Rust projects against Software Wrighte
 - Count all .rs files in src/ directory
 - Report crate name in errors
 
-**Project Crate Count**:
+**Component Crate Count** (for multi-component projects):
+- Warn if a component has more than 4 crates
+- Fail if a component has more than 7 crates
+- Count Cargo.toml files per component (not project-wide)
+- Report at component level with component name
+
+**Project Crate Count** (for old-style projects):
 - Warn if project has more than 4 crates
 - Fail if project has more than 7 crates
 - Count all Cargo.toml files found
 - Report at project level
 
+**Component Count** (for multi-component projects):
+- Warn if project has more than 7 components
+- No hard failure on component count (warning only)
+- Unlimited components allowed, just advisory warning
+
 **Acceptance Criteria**:
 - Correctly counts functions in all Rust files
 - Correctly counts modules (files) in each crate
-- Correctly counts crates in workspace/multi-crate projects
+- Correctly counts crates per component in multi-component projects
+- Correctly counts crates project-wide in old-style projects
 - Warning and failure thresholds work as specified
 - Test functions are counted but don't cause false positives
 - Clear, actionable error messages with file:line references
@@ -140,7 +175,13 @@ sw-checklist is a CLI tool that validates Rust projects against Software Wrighte
 
 **Priority**: P1 (Should Have)
 
-**Description**: Validate WASM frontend projects for required assets and metadata.
+**Description**: Validate WASM frontend projects for required assets and metadata. **Only applies to crates that use wasm-bindgen or Yew**.
+
+**Applicability**:
+- Only runs on crates with `wasm-bindgen` or `yew` dependencies
+- Only runs on crates with `crate-type = ["cdylib"]`
+- Does NOT run on CLI crates or library crates
+- A multi-component project may have WASM crates in some components and not others
 
 **Requirements**:
 - Verify index.html exists
@@ -158,6 +199,7 @@ sw-checklist is a CLI tool that validates Rust projects against Software Wrighte
 - All checks pass for properly configured WASM projects
 - Works with Yew and other WASM frameworks
 - Clear guidance on missing elements
+- Does NOT run on non-WASM crates (CLI, library)
 
 ### Feature 5: Binary Freshness Check
 
@@ -360,7 +402,27 @@ The 7±2 rule (Miller's Law) states that humans can hold approximately 7 (±2) i
 - **Functions (≤25 LOC ideal, 50 max)**: A function should do one thing and be comprehensible at a glance
 - **Modules (≤4 functions ideal, 7 max)**: A module should have a clear, focused purpose
 - **Crates (≤4 modules ideal, 7 max)**: A crate should be a cohesive unit of functionality
-- **Projects (≤4 crates ideal, 7 max)**: A project should have well-scoped boundaries
+- **Components (≤4 crates ideal, 7 max)**: A component should have well-scoped boundaries
+- **Projects**: May have unlimited components, but warn at >7
+
+### Multi-Component Project Structure
+
+New-style repositories organize code into independent components:
+
+```
+project/
+├── components/
+│   ├── spec/           # Shared data models (library crates)
+│   ├── cli/            # Command-line interface (CLI crates)
+│   └── web/            # Web UI (WASM crates)
+└── docs/
+```
+
+Each component is a workspace with its own Cargo.toml, allowing:
+- Independent versioning per component
+- Separate CI/CD pipelines
+- Clear ownership boundaries
+- Cross-component dependencies via relative paths
 
 ### References
 
@@ -374,3 +436,4 @@ The 7±2 rule (Miller's Law) states that humans can hold approximately 7 (±2) i
 | Version | Date | Changes |
 |---------|------|---------|
 | 0.1.0 | 2025-11-17 | Initial PRD with all implemented features |
+| 0.2.0 | 2025-12-03 | Added multi-component support, per-crate type detection |
