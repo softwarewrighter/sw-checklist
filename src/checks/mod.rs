@@ -2,6 +2,7 @@
 //!
 //! This module contains all validation checks organized by domain.
 
+pub mod cargo;
 pub mod clap;
 pub mod install;
 pub mod modularity;

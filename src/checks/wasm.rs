@@ -166,19 +166,19 @@ fn check_web_ui_metadata(crate_dir: &Path, crate_name: &str) -> Vec<CheckResult>
         .collect::<Result<Vec<_>, _>>()
     {
         for entry in entries {
-            if entry.path().extension().and_then(|s| s.to_str()) == Some("rs") {
-                if let Ok(content) = fs::read_to_string(entry.path()) {
-                    let content_lower = content.to_lowercase();
-                    // Check for actual footer element (not just import)
-                    if content_lower.contains("<footer")
-                        || content_lower.contains("class=\"footer\"")
-                        || (content_lower.contains("fn footer") && content_lower.contains("html!"))
-                    {
-                        found_footer_element = true;
-                    }
-                    all_source.push_str(&content);
-                    all_source.push('\n');
+            if entry.path().extension().and_then(|s| s.to_str()) == Some("rs")
+                && let Ok(content) = fs::read_to_string(entry.path())
+            {
+                let content_lower = content.to_lowercase();
+                // Check for actual footer element (not just import)
+                if content_lower.contains("<footer")
+                    || content_lower.contains("class=\"footer\"")
+                    || (content_lower.contains("fn footer") && content_lower.contains("html!"))
+                {
+                    found_footer_element = true;
                 }
+                all_source.push_str(&content);
+                all_source.push('\n');
             }
         }
     }

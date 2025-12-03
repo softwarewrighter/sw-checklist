@@ -18,20 +18,18 @@ pub fn check_tests(crate_dir: &Path, crate_name: &str, is_wasm: bool) -> Vec<Che
     let src_dir = crate_dir.join("src");
     let mut has_test_annotations = false;
 
-    if src_dir.exists() {
-        if let Ok(entries) = WalkDir::new(&src_dir)
+    if src_dir.exists()
+        && let Ok(entries) = WalkDir::new(&src_dir)
             .into_iter()
             .collect::<Result<Vec<_>, _>>()
-        {
-            for entry in entries {
-                if entry.path().extension().and_then(|s| s.to_str()) == Some("rs") {
-                    if let Ok(content) = fs::read_to_string(entry.path()) {
-                        if content.contains("#[test]") || content.contains("#[cfg(test)]") {
-                            has_test_annotations = true;
-                            break;
-                        }
-                    }
-                }
+    {
+        for entry in entries {
+            if entry.path().extension().and_then(|s| s.to_str()) == Some("rs")
+                && let Ok(content) = fs::read_to_string(entry.path())
+                && (content.contains("#[test]") || content.contains("#[cfg(test)]"))
+            {
+                has_test_annotations = true;
+                break;
             }
         }
     }

@@ -1,7 +1,7 @@
 [package]
 name = "sw-checklist"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["Michael A Wright"]
 license = "MIT"
 description = "CLI tool for validating Software Wrighter LLC project conformance"

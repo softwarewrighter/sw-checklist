@@ -137,14 +137,13 @@ fn get_binary_names(cargo: &toml::Value) -> Vec<String> {
     }
 
     // If no [[bin]] sections, use package name
-    if names.is_empty() {
-        if let Some(name) = cargo
+    if names.is_empty()
+        && let Some(name) = cargo
             .get("package")
             .and_then(|p| p.get("name"))
             .and_then(|n| n.as_str())
-        {
-            names.push(name.to_string());
-        }
+    {
+        names.push(name.to_string());
     }
 
     names

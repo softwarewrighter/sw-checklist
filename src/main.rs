@@ -17,7 +17,11 @@ const REPO: &str = env!("CARGO_PKG_REPOSITORY");
 
 const LONG_VERSION: &str = const_format::formatcp!(
     "{}\n\nCopyright (c) 2025 Michael A Wright\nMIT License\n\nRepository: {}\nBuild Host: {}\nBuild Commit: {}\nBuild Time: {}",
-    VERSION, REPO, BUILD_HOST_NAME, BUILD_COMMIT, BUILD_TIME
+    VERSION,
+    REPO,
+    BUILD_HOST_NAME,
+    BUILD_COMMIT,
+    BUILD_TIME
 );
 
 /// CLI tool for validating Software Wrighter LLC project conformance
@@ -265,10 +269,13 @@ fn run_checks(
             );
         }
 
-        // Skip workspace Cargo.toml for clap/wasm checks (they're just containers)
+        // Check Rust edition for all Cargo.toml files (including workspaces)
+        results.push(checks::cargo::check_rust_edition(&cargo_toml, crate_name));
+
+        // Skip workspace Cargo.toml for clap/wasm/modularity checks (they're just containers)
         if is_workspace {
             if verbose {
-                println!("  Skipping clap/wasm checks for workspace");
+                println!("  Skipping clap/wasm/modularity checks for workspace");
             }
             continue;
         }
