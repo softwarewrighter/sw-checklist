@@ -30,9 +30,7 @@ impl ConfigBuilder {
 
     /// Build the Config
     pub fn build(self) -> Config {
-        crate::config::new(
-            self.project_path.unwrap_or_else(|| PathBuf::from(".")),
-            self.verbose,
-        )
+        let path = self.project_path.unwrap_or_else(|| PathBuf::from("."));
+        crate::config::new(path, self.verbose)
     }
 }

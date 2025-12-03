@@ -49,7 +49,7 @@ struct Cli {
     #[arg(default_value = ".")]
     path: PathBuf,
 
-    /// Show verbose output
+    /// Show per-check details (default: summary only)
     #[arg(short, long)]
     verbose: bool,
 }
